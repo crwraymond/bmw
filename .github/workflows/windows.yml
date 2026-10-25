@@ -1,0 +1,36 @@
+name: Build Windows installer
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install Rust
+        shell: pwsh
+        run: rustup update stable --no-self-update
+      - name: Dependencies
+        run: npm ci
+      - name: Business rules
+        run: npm test
+      - name: Frontend build
+        run: npm run build
+      - name: Install browser for UI tests
+        run: npx playwright install chromium
+      - name: UI and invoice workflows
+        run: npm run test:e2e
+      - name: CSV storage and password tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
+      - name: Build installer
+        run: npm run tauri:build -- --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toko-offline-windows-x64
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
