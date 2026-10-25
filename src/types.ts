@@ -91,6 +91,8 @@ export interface Line {
   unit: string;
   qty: number;
   price: number;
+  discountType?: "amount" | "percent";
+  discountValue?: number;
   total: number;
   cost: number;
   refLineId: string;

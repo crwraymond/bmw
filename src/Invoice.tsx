@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Printer, X } from "lucide-react";
 import { type DB, type Doc, type Line, money, qty } from "./types";
 import { displayNumber } from "./numberFormat";
-import { linesOf } from "./domain";
+import { linesOf, lineDiscount, lineNet } from "./domain";
 import { printDocument } from "./storage";
 function InvoiceMoney({ value }: { value: number }) {
   return (
@@ -209,13 +209,24 @@ export function Invoice({
                         <td className="serial-cell">
                           {l.serials ? l.serials.replace(/,\s*/g, "\n") : ""}
                         </td>
-                        <td>{l.name}</td>
+                        <td>
+                          {l.name}
+                          {lineDiscount(l) > 0 && (
+                            <small className="invoice-product-discount">
+                              Diskon{" "}
+                              {l.discountType === "percent"
+                                ? `${qty(l.discountValue ?? 0)}%`
+                                : `${money(l.discountValue ?? 0)}/unit`}{" "}
+                              (−{money(lineDiscount(l))})
+                            </small>
+                          )}
+                        </td>
                         <td>{qty(l.qty)}</td>
                         <td>
                           <InvoiceMoney value={l.price} />
                         </td>
                         <td className="invoice-line-total">
-                          <InvoiceMoney value={Math.round(l.qty * l.price)} />
+                          <InvoiceMoney value={lineNet(l)} />
                         </td>
                       </tr>
                     ))}

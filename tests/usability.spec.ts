@@ -207,3 +207,113 @@ test("invoice memakai grid dan susunan seperti referensi", async ({ page }) => {
     fullPage: true,
   });
 });
+
+test("diskon tiap produk tersimpan di draf, invoice, dashboard dan retur", async ({
+  page,
+}) => {
+  await setup(page);
+  let f = await editor(page);
+  await f.getByRole("combobox", { name: "Customer", exact: true }).fill("C001");
+  await f.getByRole("option", { name: /C001/ }).click();
+  for (const code of ["001", "002"]) {
+    await f.getByLabel("Cari barang transaksi").fill(code);
+    await f.getByLabel("Cari barang transaksi").press("Enter");
+  }
+  await f.getByLabel("Qty Baterai 48V", { exact: true }).fill("2");
+  await f
+    .getByLabel("Jenis diskon Baterai 48V", { exact: true })
+    .selectOption("percent");
+  await f.getByLabel("Diskon Baterai 48V", { exact: true }).fill("10");
+  await f.getByLabel("Qty Charger 48V", { exact: true }).fill("3");
+  await f.getByLabel("Harga Charger 48V", { exact: true }).fill("2000000");
+  await f.getByLabel("Diskon Charger 48V", { exact: true }).fill("100000");
+  await f.getByLabel("Diskon total (Rp)", { exact: true }).fill("310000");
+  await expect(f.locator(".total-box .grand")).toContainText("8.000.000");
+  await page.screenshot({
+    path: test.info().outputPath("diskon-per-produk.png"),
+    fullPage: true,
+  });
+  await f.getByRole("button", { name: "Simpan draf", exact: true }).click();
+  await expect(f).not.toBeVisible();
+  await page.reload();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Penjualan", exact: true })
+    .click();
+  await page.getByTitle("Lanjutkan draf").click();
+  f = page.getByRole("dialog");
+  await expect(f.getByLabel("Diskon Baterai 48V", { exact: true })).toHaveValue(
+    "10",
+  );
+  await expect(f.getByLabel("Diskon Charger 48V", { exact: true })).toHaveValue(
+    "100.000",
+  );
+  await expect(
+    f.getByLabel("Jenis diskon Baterai 48V", { exact: true }),
+  ).toHaveValue("percent");
+  await f
+    .getByRole("button", { name: "Sahkan penjualan", exact: true })
+    .click();
+  await expect(f).not.toBeVisible();
+  await page.getByTitle("Lihat detail").click();
+  await page
+    .getByRole("button", { name: "Cetak keduanya", exact: true })
+    .click();
+  await expect(page.locator(".invoice")).toHaveCount(2);
+  for (const sheet of await page.locator(".invoice").all()) {
+    await expect(
+      sheet.locator(".invoice-product-discount").first(),
+    ).toContainText("10%");
+    await expect(
+      sheet.locator(".invoice-product-discount").last(),
+    ).toContainText("100.000");
+    await expect(sheet.locator("tfoot")).toContainText("8.000.000");
+    await expect(sheet.locator(".invoice-line-total").first()).toContainText(
+      "2.610.000",
+    );
+    await expect(sheet.locator(".invoice-line-total").last()).toContainText(
+      "5.700.000",
+    );
+  }
+  await page.pdf({
+    path: test.info().outputPath("invoice-diskon-produk.pdf"),
+    preferCSSPageSize: true,
+    printBackground: true,
+  });
+  await page.getByRole("button", { name: "Tutup", exact: true }).click();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Dashboard", exact: true })
+    .click();
+  await expect(page.locator(".stats-grid")).toContainText("3.000.000");
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Retur penjualan", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Retur penjualan baru", exact: true })
+    .click();
+  f = page.getByRole("dialog");
+  await f
+    .getByLabel("Transaksi asal", { exact: true })
+    .selectOption({ index: 1 });
+  await f.getByLabel("Qty Baterai 48V", { exact: true }).fill("1");
+  await f
+    .getByRole("button", { name: "Hapus Charger 48V", exact: true })
+    .click();
+  await expect(f.locator(".total-box .grand")).toContainText("1.256.318");
+  await f
+    .getByRole("button", { name: "Sahkan retur penjualan", exact: true })
+    .click();
+  await expect(f).not.toBeVisible();
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("toko-offline-preview-v1")!),
+  );
+  expect(
+    saved.documents.find((d: { kind: string }) => d.kind === "sale").total,
+  ).toBe(8000000);
+  expect(
+    saved.documents.find((d: { kind: string }) => d.kind === "sale_return")
+      .total,
+  ).toBe(1256318);
+});

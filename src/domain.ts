@@ -18,6 +18,41 @@ const amount = (v: number) => finite(v) && Number.isInteger(v) && v >= 0;
 const quantity = (v: number) =>
   finite(v) && v >= 0 && Math.abs(v * 1000 - Math.round(v * 1000)) < 0.0001;
 export const roundQ = (v: number) => Math.round(v * 1000) / 1000;
+export const lineGross = (line: Line) => Math.round(line.qty * line.price);
+export const lineDiscount = (line: Line) =>
+  Math.round(
+    line.discountType === "percent"
+      ? (lineGross(line) * (line.discountValue ?? 0)) / 100
+      : line.qty * (line.discountValue ?? 0),
+  );
+export const lineNet = (line: Line) => lineGross(line) - lineDiscount(line);
+function validLineDiscount(line: Line) {
+  const type = line.discountType ?? "amount";
+  const value = line.discountValue ?? 0;
+  return (
+    (line.discountType === undefined ||
+      ["amount", "percent"].includes(line.discountType)) &&
+    (line.discountValue === undefined ||
+      typeof line.discountValue === "number") &&
+    (type === "percent"
+      ? finite(value) &&
+        value >= 0 &&
+        value <= 100 &&
+        Math.abs(value * 100 - Math.round(value * 100)) < 0.0001
+      : amount(value) && value <= line.price)
+  );
+}
+export function withLineDiscountDefaults(db: DB): DB {
+  return {
+    ...db,
+    lines: db.lines.map((line) => ({
+      ...line,
+      discountType:
+        line.discountType === undefined ? "amount" : line.discountType,
+      discountValue: line.discountValue === undefined ? 0 : line.discountValue,
+    })),
+  };
+}
 export const isOrder = (k: Kind) => k.endsWith("_order");
 export const isReturn = (k: Kind) => k.endsWith("_return");
 export const partyKind = (k: Kind) =>
@@ -185,6 +220,8 @@ export function newLine(
     unit: i.unit,
     qty: 1,
     price: partyKind(kind) === "customer" ? i.sellPrice : i.buyPrice,
+    discountType: "amount",
+    discountValue: 0,
     total: 0,
     cost: 0,
     refLineId: "",
@@ -314,7 +351,13 @@ export function saveDoc(
       quantity(l.qty) && l.qty > 0 && amount(l.price),
       "Qty harus positif (maksimal 3 desimal) dan harga Rupiah bulat.",
     );
-    l.total = Math.round(l.qty * l.price);
+    check(
+      validLineDiscount(l),
+      "Diskon produk harus 0–100% (maksimal 2 desimal) atau Rupiah per unit yang tidak melebihi harga.",
+    );
+    l.discountType ??= "amount";
+    l.discountValue ??= 0;
+    l.total = lineNet(l);
     l.cost = 0;
   }
   const subtotal = lines.reduce((a, l) => a + l.total, 0);
@@ -384,7 +427,14 @@ export function saveDoc(
             ? Math.round((origin.cost * (done + l.qty)) / origin.qty) -
               Math.round((origin.cost * done) / origin.qty)
             : Math.round(stock(db, l.itemId).average * l.qty);
-        return { ...l, price: origin.price, total: credit, cost };
+        return {
+          ...l,
+          price: origin.price,
+          discountType: origin.discountType ?? "amount",
+          discountValue: origin.discountValue ?? 0,
+          total: credit,
+          cost,
+        };
       });
       doc.total = lines.reduce((a, l) => a + l.total, 0);
     } else if (doc.kind === "purchase" || doc.kind === "sale") {
@@ -614,6 +664,7 @@ export function validateDB(value: unknown): asserts value is DB {
             quantity(l.qty) &&
             l.qty > 0 &&
             amount(l.price) &&
+            validLineDiscount(l) &&
             amount(l.cost) &&
             amount(l.total),
         ),

@@ -59,7 +59,7 @@ Hasil installer berada di `src-tauri\target\release\bundle\nsis\`. Build macOS t
 - Dashboard dengan filter periode, penjualan bersih, laba kotor, jumlah transaksi, rata-rata nota, tren, produk terlaris, piutang/hutang, dan stok minimum.
 - Barang, customer, dan pemasok: tambah, ubah, cari, aktif/nonaktif, stok/saldo awal.
 - Order customer/pabrik, pemenuhan sebagian melalui transaksi terkait, dan sisa order.
-- Penjualan/pembelian: draf, final, diskon nominal, pencarian, detail, pembatalan dengan alasan.
+- Penjualan/pembelian: draf, final, diskon produk (% atau Rp/unit), diskon total tambahan, pencarian, detail, pembatalan dengan alasan.
 - Input kode barang langsung mengaktifkan Tambah baris; Enter menambahkan barang dan pengulangan kode menaikkan Qty.
 - Pencarian barang/customer/pemasok tersedia langsung di field pilihan.
 - Input angka memakai pemisah ribuan Indonesia, koma untuk desimal kuantitas, dan menghapus nol di depan.

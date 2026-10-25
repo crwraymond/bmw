@@ -1,25 +1,26 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { type DB, emptyDB } from "./types";
-import { validateDB, audit } from "./domain";
+import { validateDB, audit, withLineDiscountDefaults } from "./domain";
 export const desktop = isTauri();
 const key = "toko-offline-preview-v1";
 export async function load(): Promise<{ db: DB; path: string }> {
   if (desktop) {
     const result = await invoke<{ db: DB; path: string }>("load_store");
     validateDB(result.db);
-    return result;
+    return { ...result, db: withLineDiscountDefaults(result.db) };
   }
   const raw = localStorage.getItem(key);
   const db = raw ? JSON.parse(raw) : emptyDB();
   validateDB(db);
   return {
-    db,
+    db: withLineDiscountDefaults(db),
     path: "Penyimpanan browser ini — terpisah dari CSV aplikasi desktop",
   };
 }
 export async function persist(db: DB): Promise<DB> {
   validateDB(db);
+  db = withLineDiscountDefaults(db);
   if (desktop)
     return invoke<DB>("save_store", { db, expectedRevision: db.revision });
   const current = localStorage.getItem(key);
@@ -56,7 +57,10 @@ export async function restore(current: DB): Promise<DB | null> {
     if (!path) return null;
     const candidate = await invoke<DB>("read_backup", { source: path });
     validateDB(candidate);
-    const db = { ...candidate, revision: current.revision };
+    const db = {
+      ...withLineDiscountDefaults(candidate),
+      revision: current.revision,
+    };
     audit(db, "Pulihkan backup", "store");
     return invoke<DB>("restore_store", {
       db,

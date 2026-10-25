@@ -9,7 +9,7 @@ Tanggal: 25 Oktober 2026. Target pengguna: Windows x64, sesuai arahan pengguna. 
 - Nilai stok awal adalah total biaya seluruh stok awal. Angka nol merupakan biaya nol, bukan biaya yang belum diketahui.
 - HPP menggunakan rata-rata bergerak. Harga dan total biaya penjualan dikunci pada saat pengesahan.
 - Mutasi final harus bertanggal tidak lebih awal dari mutasi terakhir. Koreksi historis tidak melakukan perhitungan ulang HPP diam-diam.
-- Diskon adalah nominal total dokumen, dialokasikan proporsional ke baris dengan pembulatan kumulatif agar jumlah alokasi tepat. Retur mengembalikan nilai bersih proporsional.
+- Diskon produk berupa persen (maksimal dua desimal) atau Rupiah per unit. Diskon produk dibulatkan ke Rupiah per baris. Diskon nominal total dokumen diterapkan sesudahnya dan dialokasikan proporsional terhadap nilai bersih tiap baris dengan pembulatan kumulatif. Retur mengembalikan nilai bersih asal secara proporsional, termasuk seluruh diskon.
 - Order tidak mencadangkan/mengubah stok. Pemenuhan boleh sebagian; kuantitas tidak boleh melebihi sisa order. Retur tidak otomatis membuka kembali order yang sudah dipenuhi.
 - Retur penjualan dianggap stok layak jual, mengembalikan biaya asal. Retur pembelian mengeluarkan persediaan dengan biaya rata-rata saat retur; kredit pemasok mengikuti nilai bersih pembelian asal. Selisih biaya retur pembelian tidak dimasukkan sebagai laba penjualan.
 - Pembayaran customer/pemasok dialokasikan ke nota/faktur. Bagian tanpa alokasi hanya untuk saldo awal, bukan uang muka bebas untuk order mendatang.
@@ -26,7 +26,7 @@ Profil penerbit, customer, logo, rekening, terms, dan garansi disalin saat dokum
 
 Normal dan COPY mempunyai nomor serta nilai yang sama. COPY memiliki judul dan cap berbeda pada setiap lembar. Pemisahan lembar menggunakan pengukuran tinggi konten pada pratinjau. Baris yang terlalu tinggi untuk satu lembar akan ditandai dan pencetakan diblokir sampai diringkas. Pratinjau menggunakan A4 portrait. Printer fisik dan WebView2 Windows perlu pemeriksaan di perangkat pengguna.
 
-PDF pengujian memakai fixture toko uji pada browser terisolasi, bukan identitas/rekening pengguna dari foto. Logo asli perlu diunggah melalui Pengaturan; aplikasi tidak mengekstrak logo dari foto invoice.
+PDF pengujian memakai fixture pada browser terisolasi; satu fixture mencontoh susunan dan teks dari foto invoice. Fixture tidak dimasukkan ke data operasional pengguna. Logo asli perlu diunggah melalui Pengaturan; aplikasi tidak mengekstrak logo dari foto invoice.
 
 ## Perbaikan versi 0.1.1
 
@@ -36,6 +36,14 @@ PDF pengujian memakai fixture toko uji pada browser terisolasi, bukan identitas/
 - Input numerik menampilkan pemisah ribuan titik dan desimal koma. Nol di depan dinormalisasi; nilai tersimpan tetap angka. Kode barang, nomor telepon, dan SN tetap berupa teks.
 - Lima regresi UI tambahan mencakup keluhan tersebut; delapan pengujian browser dan empat belas pengujian domain lolos lokal. PDF normal/COPY dan invoice panjang diperiksa, termasuk batas halaman dan tanda tangan akhir.
 - Identifier aplikasi serta skema data tetap sama agar pembaruan menggunakan penyimpanan yang sudah ada.
+
+## Tambahan versi 0.1.2: diskon per produk
+
+- Setiap baris order, penjualan, dan pembelian memiliki pilihan `%` atau `Rp/unit`. Rp/unit dikalikan kuantitas; persen dihitung dari nilai bruto baris. Potongan dibulatkan ke Rupiah bulat per baris, maksimal senilai harga barang.
+- Contoh: Qty 2 × Rp 1.450.000 dengan diskon 10% menghasilkan potongan Rp 290.000 dan subtotal Rp 2.610.000. Diskon total di bawah form merupakan potongan tambahan dari subtotal setelah diskon produk.
+- Diskon ikut disimpan pada draf, diwariskan dari order terkait, ditampilkan pada detail dan deskripsi invoice normal/COPY, serta masuk perhitungan piutang, HPP pembelian, laba kotor, dan kredit retur.
+- Baris historis tanpa kolom diskon produk diperlakukan sebagai diskon nol. Sebelum penyimpanan CSV, semua baris diberi nilai default agar kolom lama/baru tetap konsisten. Total/HPP historis tidak dihitung ulang.
+- Delapan belas pengujian domain dan sembilan pengujian browser lolos lokal. Pemeriksaan mencakup gabungan kedua diskon, pembulatan retur sebagian, pembelian, diskon tidak valid, draf setelah reload, invoice, dan data versi lama.
 
 ## Penyimpanan dan keamanan
 

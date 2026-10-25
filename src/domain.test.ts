@@ -24,6 +24,9 @@ import {
   linesOf,
   fulfilled,
   validateDB,
+  withLineDiscountDefaults,
+  lineDiscount,
+  lineNet,
 } from "./domain";
 function setup() {
   const db = emptyDB();
@@ -115,6 +118,141 @@ function payment(db: DB, partyId: string, docId: string, amount: number) {
 }
 
 describe("integritas transaksi", () => {
+  it("diskon persen dan Rupiah per unit dialokasikan bersama diskon total", () => {
+    const { db, item, c } = setup();
+    const second = { ...item, id: uid(), code: "002" };
+    saveItem(db, second);
+    const sale = newDoc(db, "sale");
+    sale.partyId = c.id;
+    sale.discount = 90;
+    saveDoc(
+      db,
+      sale,
+      [
+        {
+          ...newLine(db, sale.id, item.id, "sale"),
+          qty: 3,
+          discountType: "percent",
+          discountValue: 10,
+        },
+        {
+          ...newLine(db, sale.id, second.id, "sale"),
+          qty: 2,
+          price: 300,
+          discountType: "amount",
+          discountValue: 25,
+        },
+      ],
+      true,
+    );
+    const saved = linesOf(db, sale.id);
+    expect(saved.map(lineDiscount)).toEqual([60, 50]);
+    expect(saved.map(lineNet)).toEqual([540, 550]);
+    expect(saved.map((l) => l.total)).toEqual([495, 505]);
+    expect(db.documents[0].total).toBe(1000);
+    expect(metrics(db, today(), today())).toMatchObject({
+      revenue: 1000,
+      profit: 500,
+      cogs: 500,
+    });
+    ret(db, sale.id, 1);
+    ret(db, sale.id, 2);
+    const back = newDoc(db, "sale_return");
+    back.partyId = c.id;
+    back.refId = sale.id;
+    saveDoc(
+      db,
+      back,
+      [{ ...saved[1], id: uid(), docId: back.id, refLineId: saved[1].id }],
+      true,
+    );
+    expect(due(db, sale.id)).toBe(0);
+    expect(metrics(db, today(), today())).toMatchObject({
+      revenue: 0,
+      profit: 0,
+    });
+    expect(stock(db, item.id).qty).toBe(10);
+    expect(stock(db, second.id).qty).toBe(10);
+    validateDB(db);
+  });
+  it("diskon produk pembelian masuk nilai stok dan kredit retur mengikuti nilai bersih", () => {
+    const { db, item, s } = setup();
+    const purchase = newDoc(db, "purchase");
+    purchase.partyId = s.id;
+    purchase.discount = 25;
+    const line = {
+      ...newLine(db, purchase.id, item.id, "purchase"),
+      qty: 3,
+      price: 200,
+      discountType: "percent" as const,
+      discountValue: 12.5,
+    };
+    saveDoc(db, purchase, [line], false);
+    expect(stock(db, item.id).value).toBe(1000);
+    expect(db.documents[0].total).toBe(500);
+    saveDoc(db, db.documents[0], linesOf(db, purchase.id), true);
+    expect(linesOf(db, purchase.id)[0].cost).toBe(500);
+    expect(stock(db, item.id)).toMatchObject({ qty: 13, value: 1500 });
+    expect(ret(db, purchase.id, 1).total).toBe(167);
+    expect(ret(db, purchase.id, 2).total).toBe(333);
+    expect(balance(db, s.id)).toBe(0);
+    validateDB(db);
+  });
+  it("diskon tidak valid ditolak dan diskon 100% menghasilkan nilai nol", () => {
+    const { db, item, c } = setup();
+    const sale = newDoc(db, "sale");
+    sale.partyId = c.id;
+    for (const discount of [
+      { discountType: "percent", discountValue: -1 },
+      { discountType: "percent", discountValue: 100.01 },
+      { discountType: "percent", discountValue: 1.001 },
+      { discountType: "amount", discountValue: 201 },
+      { discountType: "amount", discountValue: 0.5 },
+    ] as const) {
+      expect(() =>
+        saveDoc(
+          db,
+          sale,
+          [{ ...newLine(db, sale.id, item.id, "sale"), ...discount }],
+          true,
+        ),
+      ).toThrow("Diskon produk");
+    }
+    saveDoc(
+      db,
+      sale,
+      [
+        {
+          ...newLine(db, sale.id, item.id, "sale"),
+          discountType: "percent",
+          discountValue: 100,
+        },
+      ],
+      true,
+    );
+    expect(db.documents[0].total).toBe(0);
+    validateDB(db);
+  });
+  it("data versi lama diberi default diskon nol tanpa mengubah nilai historis", () => {
+    const { db, item, c } = setup();
+    doc(db, "sale", item.id, c.id, 2, 200, 50);
+    delete db.lines[0].discountType;
+    delete db.lines[0].discountValue;
+    validateDB(db);
+    const normalized = withLineDiscountDefaults(db);
+    expect(normalized.lines[0]).toMatchObject({
+      discountType: "amount",
+      discountValue: 0,
+      total: 350,
+      cost: 200,
+    });
+    expect(normalized.documents[0].total).toBe(350);
+    expect(db.lines[0].discountType).toBeUndefined();
+    validateDB(normalized);
+    const malformed = structuredClone(normalized);
+    malformed.lines[0].discountValue = -1;
+    expect(() => validateDB(malformed)).toThrow("Baris dokumen");
+  });
   it("penjualan mengurangi stok dan mengunci HPP historis", () => {
     const { db, item, c } = setup();
     const d = doc(db, "sale", item.id, c.id, 2);

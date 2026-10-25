@@ -26,6 +26,9 @@ import {
   paid,
   orderRemaining,
   returned,
+  lineGross,
+  lineDiscount,
+  lineNet,
 } from "./domain";
 import { type Commit, Toolbar, Empty, Table, Status, Modal, Field } from "./ui";
 import { exportCSV } from "./storage";
@@ -273,7 +276,19 @@ export function Editor({
     setItemMessage("");
     itemInput.current?.focus();
   };
-  const subtotal = lines.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
+  const previewTotal = (line: Line) => {
+    if (!isRet || !parent) return lineNet(line);
+    const origin = linesOf(db, parent.id).find((l) => l.id === line.refLineId);
+    if (!origin) return 0;
+    const done = returned(db, origin.id, doc.id);
+    return (
+      Math.round((origin.total * (done + line.qty)) / origin.qty) -
+      Math.round((origin.total * done) / origin.qty)
+    );
+  };
+  const gross = lines.reduce((s, l) => s + lineGross(l), 0);
+  const productDiscount = lines.reduce((s, l) => s + lineDiscount(l), 0);
+  const subtotal = lines.reduce((s, l) => s + previewTotal(l), 0);
   const save = async (final: boolean) => {
     if (
       await commit(
@@ -380,6 +395,8 @@ export function Editor({
                                 .reduce((s, x) => s + x.qty, 0),
                           ),
                           price: l.price,
+                          discountType: l.discountType ?? "amount",
+                          discountValue: l.discountValue ?? 0,
                         }))
                         .filter((l) => l.qty > 0),
                     );
@@ -465,6 +482,7 @@ export function Editor({
               "Barang",
               "Qty",
               "Harga / unit (Rp)",
+              "Diskon produk",
               "Serial number (opsional)",
               "Subtotal",
               "",
@@ -504,6 +522,46 @@ export function Editor({
                   />
                 </td>
                 <td>
+                  {isRet ? (
+                    <small>Sesuai nota asal</small>
+                  ) : (
+                    <div className="line-discount-input">
+                      <select
+                        aria-label={`Jenis diskon ${l.name}`}
+                        value={l.discountType ?? "amount"}
+                        onChange={(e) =>
+                          setLines(
+                            lines.map((line, n) =>
+                              n === i
+                                ? {
+                                    ...line,
+                                    discountType: e.target.value as
+                                      "amount" | "percent",
+                                    discountValue: 0,
+                                  }
+                                : line,
+                            ),
+                          )
+                        }
+                      >
+                        <option value="amount">Rp/unit</option>
+                        <option value="percent">%</option>
+                      </select>
+                      <NumberInput
+                        aria-label={`Diskon ${l.name}`}
+                        min={0}
+                        max={l.discountType === "percent" ? 100 : l.price}
+                        decimals={l.discountType === "percent" ? 2 : 0}
+                        required
+                        value={l.discountValue ?? 0}
+                        onValueChange={(value) =>
+                          patch(i, "discountValue", value)
+                        }
+                      />
+                    </div>
+                  )}
+                </td>
+                <td>
                   <input
                     aria-label={`SN ${l.name}`}
                     placeholder="Pisahkan dengan koma"
@@ -511,7 +569,7 @@ export function Editor({
                     onChange={(e) => patch(i, "serials", e.target.value)}
                   />
                 </td>
-                <td>{money(Math.round(l.qty * l.price))}</td>
+                <td>{money(previewTotal(l))}</td>
                 <td>
                   <button
                     type="button"
@@ -552,8 +610,20 @@ export function Editor({
           <div className="total-box">
             <div>
               <span>Subtotal</span>
-              <strong>{money(subtotal)}</strong>
+              <strong>{money(isRet ? subtotal : gross)}</strong>
             </div>
+            {!isRet && productDiscount > 0 && (
+              <>
+                <div>
+                  <span>Diskon produk</span>
+                  <strong>−{money(productDiscount)}</strong>
+                </div>
+                <div>
+                  <span>Setelah diskon produk</span>
+                  <strong>{money(subtotal)}</strong>
+                </div>
+              </>
+            )}
             {doc.kind === "sale" && (
               <Field
                 label="Uang muka / dibayar sekarang (Rp)"
@@ -569,7 +639,10 @@ export function Editor({
               </Field>
             )}
             {!isRet && (
-              <Field label="Diskon total (Rp)">
+              <Field
+                label="Diskon total (Rp)"
+                hint="Diskon tambahan setelah diskon per produk."
+              >
                 <NumberInput
                   min="0"
                   max={subtotal}
@@ -579,12 +652,13 @@ export function Editor({
               </Field>
             )}
             <div className="grand">
-              <span>{isRet ? "Perkiraan sebelum diskon asal" : "Total"}</span>
+              <span>Total</span>
               <strong>{money(Math.max(0, subtotal - doc.discount))}</strong>
             </div>
             {isRet && (
               <small>
-                Nilai final mengikuti alokasi diskon transaksi asal.
+                Nilai retur mengikuti diskon produk dan alokasi diskon total
+                pada transaksi asal.
               </small>
             )}
           </div>
@@ -640,6 +714,7 @@ export function Detail({
           "Barang",
           "Qty",
           "Harga",
+          "Diskon produk",
           "Nilai bersih",
           "HPP",
           "Serial number",
@@ -655,6 +730,9 @@ export function Detail({
               {qty(l.qty)} {l.unit}
             </td>
             <td>{money(l.price)}</td>
+            <td>
+              {isReturn(doc.kind) ? "Sesuai nota asal" : money(lineDiscount(l))}
+            </td>
             <td>{money(l.total)}</td>
             <td>{isOrder(doc.kind) ? "—" : money(l.cost)}</td>
             <td className="wrap">{l.serials || "—"}</td>

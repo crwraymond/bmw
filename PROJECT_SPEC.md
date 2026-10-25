@@ -26,7 +26,8 @@ Dokumen ini adalah bahan untuk merancang dan membangun aplikasi, bukan pernyataa
 - Fitur mengikuti aplikasi lama pada foto, dengan desain yang diperbarui.
 - Aplikasi menghasilkan invoice siap cetak dalam versi normal dan versi COPY sesuai contoh tambahan pengguna.
 - Halaman dashboard menampilkan total penjualan, total keuntungan, jumlah transaksi, dan ringkasan operasional dengan filter periode.
-- Tahap pekerjaan saat ini adalah menyusun dokumen Markdown terlebih dahulu.
+- Permintaan awal adalah menyusun dokumen Markdown, lalu pengguna meminta implementasi aplikasi.
+- Tambahan kebutuhan: diskon dapat diatur pada masing-masing produk. Implementasi menyediakan persen atau Rupiah per unit, serta mempertahankan diskon total sebagai potongan tambahan.
 
 Target sistem operasi sudah ditentukan pengguna: **Windows**. Implementasi awal memilih Windows x64 dan installer NSIS `.exe`, dengan build melalui GitHub Actions. Pratinjau web tetap dapat dijalankan di macOS untuk pengembangan.
 

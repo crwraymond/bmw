@@ -1388,6 +1388,25 @@ td input {
 .invoice .invoice-table .invoice-line-total {
   font-weight: bold;
 }
+.invoice-product-discount {
+  display: block;
+  font-size: 9px;
+  margin-top: 2px;
+  color: #333;
+}
+.line-discount-input {
+  display: flex;
+  gap: 5px;
+  min-width: 185px;
+}
+.line-discount-input select {
+  width: 100px;
+  flex-shrink: 0;
+}
+.line-discount-input input {
+  width: 105px;
+  min-width: 0;
+}
 .invoice .invoice-table tfoot td:first-child {
   text-align: right;
   font-weight: bold;
