@@ -1,3 +1,4 @@
+import { SearchSelect } from "./inputs";
 import { useState } from "react";
 import { Download, Printer } from "lucide-react";
 import { type DB, money, qty, dateLabel, labels } from "./types";
@@ -250,14 +251,19 @@ export function Reports({
           </select>
         </Field>
         <Field label="Kontak">
-          <select value={party} onChange={(e) => setParty(e.target.value)}>
-            <option value="">Semua kontak</option>
-            {db.parties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.code} — {p.name}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            value={party}
+            placeholder="Semua kontak / cari…"
+            options={[
+              { value: "", label: "Semua kontak" },
+              ...db.parties.map((p) => ({
+                value: p.id,
+                label: `${p.code} — ${p.name}`,
+                search: p.phone,
+              })),
+            ]}
+            onChange={setParty}
+          />
         </Field>
         <Field label="Dari kode">
           <input

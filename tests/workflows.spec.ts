@@ -34,20 +34,19 @@ async function document(
   await nav(page, kind);
   await page.getByRole("button", { name: `${kind} baru`, exact: true }).click();
   const f = page.getByRole("dialog");
-  await f
-    .getByLabel(
+  const partyField = f.getByRole("combobox", {
+    name:
       kind.includes("pabrik") || kind === "Pembelian"
         ? "Pabrik / pemasok"
         : "Customer",
-      { exact: true },
-    )
-    .selectOption({ label: party });
+    exact: true,
+  });
+  await partyField.fill(party);
+  await f.getByRole("option", { name: party, exact: true }).click();
   if (order)
     await f.getByLabel("Tautkan order (opsional)").selectOption({ index: 1 });
   else {
-    await f
-      .getByLabel("Pilih barang", { exact: true })
-      .selectOption({ index: 1 });
+    await f.getByLabel("Cari barang transaksi").fill("001");
     await f.getByRole("button", { name: "Tambah baris" }).click();
   }
   await f.getByLabel("Qty Baterai 48V", { exact: true }).fill(qty);
@@ -149,8 +148,11 @@ test("alur operasional, invoice, backup, dan buka ulang", async ({
     .click();
   f = page.getByRole("dialog");
   await f
-    .getByLabel("Customer / pemasok", { exact: true })
-    .selectOption({ label: "C01 — Customer Uji" });
+    .getByRole("combobox", { name: "Customer / pemasok", exact: true })
+    .fill("C01");
+  await f
+    .getByRole("option", { name: "C01 — Customer Uji", exact: true })
+    .click();
   await f.getByLabel("Nominal dibayar (Rp)").fill("250");
   await f.locator("tbody input").fill("250");
   await f.getByRole("button", { name: "Simpan pembayaran" }).click();

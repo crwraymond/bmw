@@ -1,3 +1,4 @@
+import { NumberInput, SearchSelect } from "./inputs";
 import { useState } from "react";
 import { Plus, Ban } from "lucide-react";
 import { type DB, type Payment, uid, today, money, dateLabel } from "./types";
@@ -173,23 +174,22 @@ export function Payments({
                 </select>
               </Field>
               <Field label="Customer / pemasok">
-                <select
+                <SearchSelect
                   required
                   value={edit.partyId}
-                  onChange={(e) => {
-                    setEdit({ ...edit, partyId: e.target.value });
+                  placeholder="Cari kode atau nama kontak…"
+                  options={db.parties
+                    .filter((p) => p.kind === kind && p.active)
+                    .map((p) => ({
+                      value: p.id,
+                      label: `${p.code} — ${p.name}`,
+                      search: p.phone,
+                    }))}
+                  onChange={(value) => {
+                    setEdit({ ...edit, partyId: value });
                     setAlloc({});
                   }}
-                >
-                  <option value="">Pilih kontak</option>
-                  {db.parties
-                    .filter((p) => p.kind === kind && p.active)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.code} — {p.name}
-                      </option>
-                    ))}
-                </select>
+                />
               </Field>
               <Field label="Nomor pembayaran">
                 <input
@@ -207,15 +207,11 @@ export function Payments({
                 />
               </Field>
               <Field label="Nominal dibayar (Rp)">
-                <input
-                  type="number"
+                <NumberInput
                   required
                   min="1"
-                  step="1"
                   value={edit.amount}
-                  onChange={(e) =>
-                    setEdit({ ...edit, amount: Number(e.target.value) })
-                  }
+                  onValueChange={(value) => setEdit({ ...edit, amount: value })}
                 />
               </Field>
               <Field label="Catatan / metode">
@@ -246,17 +242,15 @@ export function Payments({
                         <td>{dateLabel(d.date)}</td>
                         <td>{money(due(db, d.id))}</td>
                         <td>
-                          <input
+                          <NumberInput
                             aria-label={`Alokasi ${d.number}`}
-                            type="number"
                             min="0"
                             max={due(db, d.id)}
-                            step="1"
                             value={alloc[d.id] || 0}
-                            onChange={(e) =>
+                            onValueChange={(value) =>
                               setAlloc({
                                 ...alloc,
-                                [d.id]: Number(e.target.value),
+                                [d.id]: value,
                               })
                             }
                           />

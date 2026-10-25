@@ -29,7 +29,8 @@ export function Field({
       <label id={id}>{label}</label>
       {Children.map(children, (child) =>
         isValidElement(child) &&
-        ["input", "select", "textarea"].includes(String(child.type))
+        (["input", "select", "textarea"].includes(String(child.type)) ||
+          typeof child.type === "function")
           ? cloneElement(child as ReactElement<Record<string, unknown>>, {
               "aria-labelledby": id,
               "aria-describedby": hint ? `${id}-hint` : undefined,

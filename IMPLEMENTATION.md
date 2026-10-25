@@ -28,6 +28,15 @@ Normal dan COPY mempunyai nomor serta nilai yang sama. COPY memiliki judul dan c
 
 PDF pengujian memakai fixture toko uji pada browser terisolasi, bukan identitas/rekening pengguna dari foto. Logo asli perlu diunggah melalui Pengaturan; aplikasi tidak mengekstrak logo dari foto invoice.
 
+## Perbaikan versi 0.1.1
+
+- Layout invoice mengikuti susunan referensi: logo penerbit di atas kiri, judul di kiri dan logo mitra di kanan, grid ringkas, Rp sejajar, terms/uang muka satu baris, blok rekening, tanda tangan, dan cap COPY bergaris luar. Identitas dan logo tetap mengikuti snapshot dokumen.
+- Dropdown memakai panah dengan jarak kanan yang konsisten. Customer/pemasok dan barang dapat dicari langsung pada field pilihan.
+- Kode barang yang cocok langsung mengaktifkan tombol tambah. Enter menambahkan barang tanpa menyimpan dokumen; memasukkan barang yang sama menaikkan kuantitas.
+- Input numerik menampilkan pemisah ribuan titik dan desimal koma. Nol di depan dinormalisasi; nilai tersimpan tetap angka. Kode barang, nomor telepon, dan SN tetap berupa teks.
+- Lima regresi UI tambahan mencakup keluhan tersebut; delapan pengujian browser dan empat belas pengujian domain lolos lokal. PDF normal/COPY dan invoice panjang diperiksa, termasuk batas halaman dan tanda tangan akhir.
+- Identifier aplikasi serta skema data tetap sama agar pembaruan menggunakan penyimpanan yang sudah ada.
+
 ## Penyimpanan dan keamanan
 
 Delapan CSV memuat master, dokumen, detail, pembayaran/alokasi, audit, dan pengaturan. Stok, saldo, serta data invoice diturunkan dari dokumen/snapshot yang sama, bukan file laporan terpisah. Bentuk file ini menyederhanakan daftar CSV usulan pada spesifikasi tanpa mengganti penyimpanan menjadi database lain.

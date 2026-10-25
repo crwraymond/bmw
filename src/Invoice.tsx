@@ -1,8 +1,17 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Printer, X } from "lucide-react";
-import { type DB, type Doc, type Line, money, qty, dateLabel } from "./types";
+import { type DB, type Doc, type Line, money, qty } from "./types";
+import { displayNumber } from "./numberFormat";
 import { linesOf } from "./domain";
 import { printDocument } from "./storage";
+function InvoiceMoney({ value }: { value: number }) {
+  return (
+    <div className="invoice-money">
+      <span>Rp</span>
+      <span>{displayNumber(value)}</span>
+    </div>
+  );
+}
 type Sheet = {
   lines: Line[];
   warranty: string;
@@ -137,18 +146,24 @@ export function Invoice({
                     <strong>{doc.issuerName}</strong>
                   )}
                 </div>
-                {doc.partnerLogo && (
-                  <img src={doc.partnerLogo} alt="Logo mitra" />
-                )}
+                <div className="invoice-brand-space" />
               </header>
               <div className="invoice-title">
                 <h1>{copy ? "Copy Invoice" : "Invoice"}</h1>
-                <span>{doc.number}</span>
+                <div className="invoice-partner-logo">
+                  {doc.partnerLogo && (
+                    <img src={doc.partnerLogo} alt="Logo mitra" />
+                  )}
+                </div>
               </div>
               <div className="invoice-meta">
                 <section>
                   <p>
-                    <b>Date:</b> {dateLabel(doc.date)}
+                    <b>Date:</b>{" "}
+                    {new Date(`${doc.date}T12:00:00`).toLocaleDateString(
+                      "en-GB",
+                      { day: "numeric", month: "long", year: "numeric" },
+                    )}
                   </p>
                   <p>
                     <b>Reff:</b> {doc.number}
@@ -169,6 +184,11 @@ export function Invoice({
               </section>
               {sheet.lines.length > 0 && (
                 <table className="invoice-table">
+                  <colgroup>
+                    {[4.5, 18, 30.5, 6, 18, 23].map((width, index) => (
+                      <col key={index} style={{ width: `${width}%` }} />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr>
                       <th>No</th>
@@ -186,13 +206,17 @@ export function Invoice({
                           {linesOf(db, doc.id).findIndex((x) => x.id === l.id) +
                             1}
                         </td>
-                        <td className="serial-cell">{l.serials || "—"}</td>
-                        <td>{l.name}</td>
-                        <td>
-                          {qty(l.qty)} {l.unit}
+                        <td className="serial-cell">
+                          {l.serials ? l.serials.replace(/,\s*/g, "\n") : ""}
                         </td>
-                        <td>{money(l.price)}</td>
-                        <td>{money(Math.round(l.qty * l.price))}</td>
+                        <td>{l.name}</td>
+                        <td>{qty(l.qty)}</td>
+                        <td>
+                          <InvoiceMoney value={l.price} />
+                        </td>
+                        <td className="invoice-line-total">
+                          <InvoiceMoney value={Math.round(l.qty * l.price)} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -201,7 +225,9 @@ export function Invoice({
                       {doc.discount > 0 && (
                         <tr>
                           <td colSpan={5}>Discount</td>
-                          <td>−{money(doc.discount)}</td>
+                          <td>
+                            <InvoiceMoney value={-doc.discount} />
+                          </td>
                         </tr>
                       )}
                       <tr>
@@ -209,7 +235,9 @@ export function Invoice({
                           <b>Grand Total</b>
                         </td>
                         <td>
-                          <b>{money(doc.total)}</b>
+                          <b>
+                            <InvoiceMoney value={doc.total} />
+                          </b>
                         </td>
                       </tr>
                     </tfoot>
@@ -218,16 +246,8 @@ export function Invoice({
               )}
               {sheet.summary && (
                 <section className="invoice-terms">
-                  <p>
-                    <b>Terms of Payment:</b> {doc.terms || "—"}
-                  </p>
-                  <p>
-                    <b>Down Payment:</b> {money(doc.downPayment || 0)}
-                  </p>
-                  <p>
-                    <b>Sisa saat penerbitan:</b>{" "}
-                    {money(doc.total - (doc.downPayment || 0))}
-                  </p>
+                  <b>Terms of Payment:</b> {doc.terms || "—"},{" "}
+                  <b>Down Payment: {money(doc.downPayment || 0)}</b>
                 </section>
               )}
               {sheet.warranty && (
@@ -236,7 +256,19 @@ export function Invoice({
                     WARRANTY TERMS & CONDITIONS
                     {!sheet.lines.length ? " (lanjutan)" : ""}
                   </b>
-                  <p>{sheet.warranty}</p>
+                  <div className="warranty-text">
+                    {sheet.warranty.split("\n").map((line, index) => (
+                      <div key={index}>
+                        {/^(Warranty is void if|Shipping costs|Syarat|Catatan)/i.test(
+                          line,
+                        ) ? (
+                          <b>{line}</b>
+                        ) : (
+                          line || <br />
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </section>
               )}
               <div
@@ -261,7 +293,6 @@ export function Invoice({
                         ))}
                     </section>
                     <section className="invoice-signature">
-                      <div className="signature-space" />
                       <p>Signature: {doc.signature || doc.issuerName}</p>
                     </section>
                   </>
@@ -276,10 +307,12 @@ export function Invoice({
                   </div>
                 )}
               </div>
-              <div className="invoice-footnote">
-                {doc.number}
-                {copy ? " • COPY" : ""} · Halaman {i + 1} / {sheets.length}
-              </div>
+              {sheets.length > 1 && (
+                <div className="invoice-footnote">
+                  {doc.number}
+                  {copy ? " • COPY" : ""} · Halaman {i + 1} / {sheets.length}
+                </div>
+              )}
             </article>
           )),
         )}

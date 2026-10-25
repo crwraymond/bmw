@@ -1,3 +1,4 @@
+import { NumberInput } from "./inputs";
 import { useState } from "react";
 import { Plus, Pencil, Power } from "lucide-react";
 import { type DB, type Item, type Party, uid, money, qty } from "./types";
@@ -292,20 +293,17 @@ export function Masters({
                           : undefined
                       }
                     >
-                      <input
-                        type="number"
+                      <NumberInput
                         min="0"
-                        step={
-                          ["openingQty", "minStock"].includes(key)
-                            ? "0.001"
-                            : "1"
+                        decimals={
+                          ["openingQty", "minStock"].includes(key) ? 3 : 0
                         }
                         required
                         value={(editing as Item)[key]}
-                        onChange={(e) =>
+                        onValueChange={(value) =>
                           setEditing({
                             ...editing,
-                            [key]: Number(e.target.value),
+                            [key]: value,
                           })
                         }
                       />
@@ -340,15 +338,13 @@ export function Masters({
                     label="Saldo awal (Rp)"
                     hint="Positif = tagihan belum dibayar; negatif = saldo kredit."
                   >
-                    <input
-                      type="number"
-                      step="1"
+                    <NumberInput
                       required
                       value={(editing as Party).openingBalance}
-                      onChange={(e) =>
+                      onValueChange={(value) =>
                         setEditing({
                           ...editing,
-                          openingBalance: Number(e.target.value),
+                          openingBalance: value,
                         })
                       }
                     />

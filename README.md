@@ -37,7 +37,7 @@ Pengguna akhir cukup memasang installer dan membuka aplikasi. Mereka tidak perlu
 
 ## Build Windows lewat GitHub Actions
 
-Workflow `.github/workflows/windows.yml` dijalankan manual:
+Workflow `.github/workflows/windows.yml` otomatis berjalan setelah push ke `main` dan juga bisa dijalankan manual:
 
 1. Buka tab **Actions** pada repository.
 2. Pilih **Build Windows installer** → **Run workflow**.
@@ -60,6 +60,9 @@ Hasil installer berada di `src-tauri\target\release\bundle\nsis\`. Build macOS t
 - Barang, customer, dan pemasok: tambah, ubah, cari, aktif/nonaktif, stok/saldo awal.
 - Order customer/pabrik, pemenuhan sebagian melalui transaksi terkait, dan sisa order.
 - Penjualan/pembelian: draf, final, diskon nominal, pencarian, detail, pembatalan dengan alasan.
+- Input kode barang langsung mengaktifkan Tambah baris; Enter menambahkan barang dan pengulangan kode menaikkan Qty.
+- Pencarian barang/customer/pemasok tersedia langsung di field pilihan.
+- Input angka memakai pemisah ribuan Indonesia, koma untuk desimal kuantitas, dan menghapus nol di depan.
 - Uang muka penjualan dicatat sekaligus sebagai pembayaran teralokasi.
 - Retur penjualan/pembelian yang mengacu transaksi asal, termasuk batas kuantitas dan diskon proporsional.
 - Pelunasan parsial/penuh, alokasi per tagihan, serta pembatalan pembayaran.
@@ -111,6 +114,8 @@ Pengujian browser menjalankan fixture pada penyimpanan terisolasi dan memeriksa 
 ```text
 src/types.ts          Model data dan format tampilan
 src/domain.ts         Aturan transaksi, stok, biaya, saldo, dan metrik
+src/inputs.tsx        Pilihan dengan pencarian dan input angka terformat
+src/numberFormat.ts   Format angka saat mengetik dan parsing nilai
 src/storage.ts        Adapter desktop CSV dan pratinjau browser
 src/App.tsx           Navigasi, sesi, commit, dan konfirmasi
 src/Dashboard.tsx     Dashboard

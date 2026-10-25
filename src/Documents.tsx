@@ -1,3 +1,4 @@
+import { NumberInput, SearchSelect } from "./inputs";
 import { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, Eye, Pencil } from "lucide-react";
 import {
@@ -232,6 +233,46 @@ export function Editor({
         : [],
     );
   };
+  const itemInput = useRef<HTMLInputElement>(null);
+  const [itemMessage, setItemMessage] = useState("");
+  const matches = db.items.filter(
+    (i) =>
+      i.active &&
+      `${i.code} ${i.name}`
+        .toLowerCase()
+        .includes(itemSearch.trim().toLowerCase()),
+  );
+  const exact = db.items.find(
+    (i) => i.active && i.code.toLowerCase() === itemSearch.trim().toLowerCase(),
+  );
+  const candidate =
+    db.items.find((i) => i.id === item) ||
+    exact ||
+    (itemSearch.trim() && matches.length === 1 ? matches[0] : undefined);
+  const addItem = () => {
+    if (!candidate) {
+      setItemMessage(
+        matches.length > 1
+          ? "Ada beberapa barang yang cocok. Pilih barang yang dimaksud."
+          : "Kode barang tidak ditemukan. Tambahkan barang di menu Barang & stok terlebih dahulu.",
+      );
+      return;
+    }
+    setLines((current) => {
+      const found = current.find((l) => l.itemId === candidate.id);
+      return found
+        ? current.map((l) =>
+            l.id === found.id
+              ? { ...l, qty: Math.round((l.qty + 1) * 1000) / 1000 }
+              : l,
+          )
+        : [...current, newLine(db, doc.id, candidate.id, doc.kind)];
+    });
+    setItem("");
+    setItemSearch("");
+    setItemMessage("");
+    itemInput.current?.focus();
+  };
   const subtotal = lines.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
   const save = async (final: boolean) => {
     if (
@@ -274,21 +315,24 @@ export function Editor({
                 : "Pabrik / pemasok"
             }
           >
-            <select
+            <SearchSelect
               required
               value={doc.partyId}
               disabled={isRet}
-              onChange={(e) =>
-                setDoc({ ...doc, partyId: e.target.value, orderId: "" })
+              placeholder={
+                partyKind(doc.kind) === "customer"
+                  ? "Cari kode atau nama customer…"
+                  : "Cari kode atau nama pemasok…"
               }
-            >
-              <option value="">Pilih kontak</option>
-              {parties.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.code} — {p.name}
-                </option>
-              ))}
-            </select>
+              options={parties.map((p) => ({
+                value: p.id,
+                label: `${p.code} — ${p.name}`,
+                search: `${p.phone} ${p.city}`,
+              }))}
+              onChange={(value) =>
+                setDoc({ ...doc, partyId: value, orderId: "" })
+              }
+            />
           </Field>
           {isRet && (
             <Field label="Transaksi asal">
@@ -362,46 +406,57 @@ export function Editor({
           )}
         </div>
         {!isRet && (
-          <div className="add-line">
-            <input
-              aria-label="Cari barang transaksi"
-              placeholder="Cari kode atau nama barang…"
-              value={itemSearch}
-              onChange={(e) => setItemSearch(e.target.value)}
-            />
-            <select
-              aria-label="Pilih barang"
-              value={item}
-              onChange={(e) => setItem(e.target.value)}
-            >
-              <option value="">Pilih barang</option>
-              {db.items
-                .filter(
-                  (i) =>
-                    i.active &&
-                    !lines.some((l) => l.itemId === i.id) &&
-                    `${i.code} ${i.name}`
-                      .toLowerCase()
-                      .includes(itemSearch.toLowerCase()),
-                )
-                .map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.code} — {i.name} (stok {qty(stock(db, i.id).qty)})
-                  </option>
-                ))}
-            </select>
-            <button
-              type="button"
-              disabled={!item}
-              onClick={() => {
-                setLines([...lines, newLine(db, doc.id, item, doc.kind)]);
-                setItem("");
-                setItemSearch("");
-              }}
-            >
-              <Plus size={16} />
-              Tambah baris
-            </button>
+          <div className="add-product">
+            <div className="add-line">
+              <input
+                ref={itemInput}
+                aria-label="Cari barang transaksi"
+                placeholder="Ketik kode lalu Enter…"
+                value={itemSearch}
+                onChange={(e) => {
+                  const query = e.target.value;
+                  setItemSearch(query);
+                  setItem(
+                    db.items.find(
+                      (i) =>
+                        i.active &&
+                        i.code.toLowerCase() === query.trim().toLowerCase(),
+                    )?.id || "",
+                  );
+                  setItemMessage("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    addItem();
+                  }
+                }}
+              />
+              <SearchSelect
+                aria-label="Pilih barang"
+                value={item}
+                placeholder="Cari atau pilih barang…"
+                options={(itemSearch.trim()
+                  ? matches
+                  : db.items.filter((i) => i.active)
+                ).map((i) => ({
+                  value: i.id,
+                  label: `${i.code} — ${i.name}`,
+                  detail: `Stok ${qty(stock(db, i.id).qty)} ${i.unit}`,
+                }))}
+                onChange={setItem}
+              />
+              <button type="button" disabled={!candidate} onClick={addItem}>
+                <Plus size={16} />
+                Tambah baris
+              </button>
+            </div>
+            {itemMessage && (
+              <p className="item-message" role="status">
+                {itemMessage}
+              </p>
+            )}
           </div>
         )}
         {lines.length ? (
@@ -427,28 +482,25 @@ export function Editor({
                   </small>
                 </td>
                 <td>
-                  <input
+                  <NumberInput
                     aria-label={`Qty ${l.name}`}
                     className="qty-input"
-                    type="number"
                     min="0.001"
-                    step="0.001"
+                    decimals={3}
                     required
                     value={l.qty}
-                    onChange={(e) => patch(i, "qty", Number(e.target.value))}
+                    onValueChange={(value) => patch(i, "qty", value)}
                   />
                 </td>
                 <td>
-                  <input
+                  <NumberInput
                     aria-label={`Harga ${l.name}`}
                     className="price-input"
-                    type="number"
                     min="0"
-                    step="1"
                     required
                     disabled={isRet}
                     value={l.price}
-                    onChange={(e) => patch(i, "price", Number(e.target.value))}
+                    onValueChange={(value) => patch(i, "price", value)}
                   />
                 </td>
                 <td>
@@ -507,28 +559,22 @@ export function Editor({
                 label="Uang muka / dibayar sekarang (Rp)"
                 hint="Dicatat otomatis sebagai pembayaran saat disahkan."
               >
-                <input
-                  type="number"
+                <NumberInput
                   min="0"
-                  step="1"
                   value={doc.downPayment}
-                  onChange={(e) =>
-                    setDoc({ ...doc, downPayment: Number(e.target.value) })
+                  onValueChange={(value) =>
+                    setDoc({ ...doc, downPayment: value })
                   }
                 />
               </Field>
             )}
             {!isRet && (
               <Field label="Diskon total (Rp)">
-                <input
-                  type="number"
+                <NumberInput
                   min="0"
                   max={subtotal}
-                  step="1"
                   value={doc.discount}
-                  onChange={(e) =>
-                    setDoc({ ...doc, discount: Number(e.target.value) })
-                  }
+                  onValueChange={(value) => setDoc({ ...doc, discount: value })}
                 />
               </Field>
             )}
