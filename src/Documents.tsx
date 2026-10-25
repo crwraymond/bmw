@@ -1,4 +1,6 @@
 import { NumberInput, SearchSelect } from "./inputs";
+import { SerialInputs } from "./SerialInputs";
+import { serialText } from "./serials";
 import { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, Eye, Pencil } from "lucide-react";
 import {
@@ -98,7 +100,7 @@ export function DocumentList({
           <Table
             headers={[
               "Dokumen",
-              "Customer / pemasok",
+              ...(partyKind(kind) === "customer" ? ["Customer"] : []),
               "Total",
               isOrder(kind) ? "Sisa order" : "Sisa tagihan",
               "Status",
@@ -111,7 +113,7 @@ export function DocumentList({
                   <strong>{d.number}</strong>
                   <small>{dateLabel(d.date)}</small>
                 </td>
-                <td>{d.partyName}</td>
+                {partyKind(kind) === "customer" && <td>{d.partyName}</td>}
                 <td>{money(d.total)}</td>
                 <td>
                   {d.status !== "final"
@@ -323,32 +325,24 @@ export function Editor({
               onChange={(e) => setDoc({ ...doc, date: e.target.value })}
             />
           </Field>
-          <Field
-            label={
-              partyKind(doc.kind) === "customer"
-                ? "Customer"
-                : "Pabrik / pemasok"
-            }
-          >
-            <SearchSelect
-              required
-              value={doc.partyId}
-              disabled={isRet}
-              placeholder={
-                partyKind(doc.kind) === "customer"
-                  ? "Cari kode atau nama customer…"
-                  : "Cari kode atau nama pemasok…"
-              }
-              options={parties.map((p) => ({
-                value: p.id,
-                label: `${p.code} — ${p.name}`,
-                search: `${p.phone} ${p.city}`,
-              }))}
-              onChange={(value) =>
-                setDoc({ ...doc, partyId: value, orderId: "" })
-              }
-            />
-          </Field>
+          {partyKind(doc.kind) === "customer" && (
+            <Field label="Customer">
+              <SearchSelect
+                required
+                value={doc.partyId}
+                disabled={isRet}
+                placeholder="Cari kode atau nama customer…"
+                options={parties.map((p) => ({
+                  value: p.id,
+                  label: `${p.code} — ${p.name}`,
+                  search: `${p.phone} ${p.city}`,
+                }))}
+                onChange={(value) =>
+                  setDoc({ ...doc, partyId: value, orderId: "" })
+                }
+              />
+            </Field>
+          )}
           {isRet && (
             <Field label="Transaksi asal">
               <select
@@ -562,11 +556,11 @@ export function Editor({
                   )}
                 </td>
                 <td>
-                  <input
-                    aria-label={`SN ${l.name}`}
-                    placeholder="Pisahkan dengan koma"
+                  <SerialInputs
+                    name={l.name}
+                    quantity={l.qty}
                     value={l.serials}
-                    onChange={(e) => patch(i, "serials", e.target.value)}
+                    onChange={(value) => patch(i, "serials", value)}
                   />
                 </td>
                 <td>{money(previewTotal(l))}</td>
@@ -735,7 +729,7 @@ export function Detail({
             </td>
             <td>{money(l.total)}</td>
             <td>{isOrder(doc.kind) ? "—" : money(l.cost)}</td>
-            <td className="wrap">{l.serials || "—"}</td>
+            <td className="wrap">{serialText(l.serials) || "—"}</td>
           </tr>
         ))}
       </Table>

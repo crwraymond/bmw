@@ -317,3 +317,178 @@ test("diskon tiap produk tersimpan di draf, invoice, dashboard dan retur", async
       .total,
   ).toBe(1256318);
 });
+
+test("kotak SN mengikuti Qty dan mempertahankan nilai saat Qty berubah", async ({
+  page,
+}) => {
+  await setup(page);
+  let f = await editor(page);
+  await f.getByRole("combobox", { name: "Customer", exact: true }).fill("C001");
+  await f.getByRole("option", { name: /C001/ }).click();
+  await f.getByLabel("Cari barang transaksi").fill("001");
+  await f.getByLabel("Cari barang transaksi").press("Enter");
+  const quantity = f.getByLabel("Qty Baterai 48V", { exact: true });
+  await quantity.fill("2");
+  await expect(f.locator(".serial-unit input")).toHaveCount(2);
+  await f.getByLabel("SN Baterai 48V unit 2", { exact: true }).fill("SN-002");
+  await expect(
+    f.getByLabel("SN Baterai 48V unit 1", { exact: true }),
+  ).toHaveValue("");
+  await f.getByLabel("SN Baterai 48V unit 1", { exact: true }).fill("SN-001");
+  await f.getByLabel("SN Baterai 48V unit 1", { exact: true }).press("Enter");
+  await expect(
+    f.getByLabel("SN Baterai 48V unit 2", { exact: true }),
+  ).toBeFocused();
+  await expect(f).toBeVisible();
+  await quantity.fill("3");
+  await expect(f.locator(".serial-unit input")).toHaveCount(3);
+  await f.getByLabel("SN Baterai 48V unit 3", { exact: true }).fill("SN-003");
+  await quantity.fill("2");
+  await expect(f.locator(".serial-unit input")).toHaveCount(2);
+  await expect(f.locator(".serial-extras")).toContainText("1 SN di luar Qty");
+  await quantity.fill("3");
+  await expect(
+    f.getByLabel("SN Baterai 48V unit 3", { exact: true }),
+  ).toHaveValue("SN-003");
+  await quantity.fill("2");
+  await f.locator(".serial-extras summary").click();
+  await f
+    .getByRole("button", { name: "Hapus SN di luar Qty", exact: true })
+    .click();
+  await expect(f.locator(".serial-extras")).toHaveCount(0);
+  await page.screenshot({
+    path: test.info().outputPath("sn-per-unit.png"),
+    fullPage: true,
+  });
+  await f.getByRole("button", { name: "Simpan draf", exact: true }).click();
+  await expect(f).not.toBeVisible();
+  await page.reload();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Penjualan", exact: true })
+    .click();
+  await page.getByTitle("Lanjutkan draf").click();
+  f = page.getByRole("dialog");
+  await expect(f.locator(".serial-unit input")).toHaveCount(2);
+  await expect(
+    f.getByLabel("SN Baterai 48V unit 2", { exact: true }),
+  ).toHaveValue("SN-002");
+  await f
+    .getByRole("button", { name: "Sahkan penjualan", exact: true })
+    .click();
+  await expect(f).not.toBeVisible();
+  await page.getByTitle("Lihat detail").click();
+  await page
+    .getByRole("button", { name: "Cetak keduanya", exact: true })
+    .click();
+  for (const sheet of await page.locator(".invoice").all()) {
+    await expect(sheet.locator(".serial-cell")).toHaveText("SN-001\nSN-002");
+    await expect(sheet).not.toContainText("SN-003");
+  }
+});
+
+test("Qty besar memakai halaman SN dan Qty pecahan tetap dapat diisi", async ({
+  page,
+}) => {
+  await setup(page);
+  const f = await editor(page);
+  await f.getByLabel("Cari barang transaksi").fill("001");
+  await f.getByLabel("Cari barang transaksi").press("Enter");
+  await f.getByLabel("Qty Baterai 48V", { exact: true }).fill("1000");
+  await expect(f.locator(".serial-unit input")).toHaveCount(12);
+  await f.getByLabel("SN Baterai 48V unit 12", { exact: true }).press("Enter");
+  await expect(
+    f.getByLabel("SN Baterai 48V unit 13", { exact: true }),
+  ).toBeFocused();
+  await f.getByLabel("SN Baterai 48V unit 13", { exact: true }).fill("SN-013");
+  await f.getByLabel("Qty Baterai 48V", { exact: true }).fill("1,5");
+  await expect(f.getByLabel("SN Baterai 48V", { exact: true })).toContainText(
+    "SN-013",
+  );
+  await f.getByLabel("Qty Baterai 48V", { exact: true }).fill("13");
+  await expect(
+    f.getByLabel("SN Baterai 48V unit 13", { exact: true }),
+  ).toHaveValue("SN-013");
+});
+
+test("pembelian dan pelunasan tidak perlu daftar pabrik dan modal masuk dashboard", async ({
+  page,
+}) => {
+  await setup(page);
+  const nav = async (name: string) =>
+    page.locator("nav").getByRole("button", { name, exact: true }).click();
+  await expect(
+    page.locator("nav").getByRole("button", { name: /pabrik|pemasok/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /^Total modal/ }),
+  ).toContainText("40.000.000");
+  await nav("Pembelian");
+  await page
+    .getByRole("button", { name: "Pembelian baru", exact: true })
+    .click();
+  let f = page.getByRole("dialog");
+  await expect(
+    f.getByRole("combobox", { name: /customer|pemasok|pabrik/i }),
+  ).toHaveCount(0);
+  await f.getByLabel("Cari barang transaksi").fill("001");
+  await f.getByLabel("Cari barang transaksi").press("Enter");
+  await f.getByLabel("Qty Baterai 48V", { exact: true }).fill("5");
+  await f.getByLabel("Harga Baterai 48V", { exact: true }).fill("1200000");
+  await f
+    .getByLabel("Jenis diskon Baterai 48V", { exact: true })
+    .selectOption("percent");
+  await f.getByLabel("Diskon Baterai 48V", { exact: true }).fill("10");
+  await f
+    .getByRole("button", { name: "Sahkan pembelian", exact: true })
+    .click();
+  await expect(f).not.toBeVisible();
+  await nav("Dashboard");
+  await expect(
+    page.getByRole("button", { name: /^Total modal/ }),
+  ).toContainText("45.400.000");
+  await page.getByLabel("Periode", { exact: true }).selectOption("custom");
+  await page.getByLabel("Dari tanggal", { exact: true }).fill("2000-01-01");
+  await page.getByLabel("Sampai tanggal", { exact: true }).fill("2000-01-02");
+  await expect(
+    page.getByRole("button", { name: /^Total modal/ }),
+  ).toContainText("45.400.000");
+  await page.screenshot({
+    path: test.info().outputPath("dashboard-total-modal.png"),
+    fullPage: true,
+  });
+  await nav("Pelunasan");
+  await page
+    .getByRole("button", { name: "Catat pembayaran", exact: true })
+    .click();
+  f = page.getByRole("dialog");
+  await f
+    .getByLabel("Jenis pembayaran", { exact: true })
+    .selectOption("supplier");
+  await expect(
+    f.getByRole("combobox", { name: /Customer|pemasok/ }),
+  ).toHaveCount(0);
+  await f.getByLabel("Nominal dibayar (Rp)", { exact: true }).fill("5400000");
+  await f.locator("tbody input").fill("5400000");
+  await f
+    .getByRole("button", { name: "Simpan pembayaran", exact: true })
+    .click();
+  await expect(f).not.toBeVisible();
+  await page.reload();
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("toko-offline-preview-v1")!),
+  );
+  const suppliers = saved.parties.filter(
+    (p: { kind: string }) => p.kind === "supplier",
+  );
+  expect(suppliers).toHaveLength(1);
+  expect(
+    saved.documents.find((d: { kind: string }) => d.kind === "purchase")
+      .partyId,
+  ).toBe(suppliers[0].id);
+  expect(saved.payments[0]).toMatchObject({
+    partyId: suppliers[0].id,
+    direction: "out",
+    amount: 5400000,
+  });
+});

@@ -45,6 +45,15 @@ PDF pengujian memakai fixture pada browser terisolasi; satu fixture mencontoh su
 - Baris historis tanpa kolom diskon produk diperlakukan sebagai diskon nol. Sebelum penyimpanan CSV, semua baris diberi nilai default agar kolom lama/baru tetap konsisten. Total/HPP historis tidak dihitung ulang.
 - Delapan belas pengujian domain dan sembilan pengujian browser lolos lokal. Pemeriksaan mencakup gabungan kedua diskon, pembulatan retur sebagian, pembelian, diskon tidak valid, draf setelah reload, invoice, dan data versi lama.
 
+## Tambahan versi 0.1.3: SN, modal, dan pemasok tunggal
+
+- Qty bulat positif menampilkan satu kotak SN per unit. Enter berpindah ke kotak berikutnya. Qty besar ditampilkan 12 kotak per halaman agar form tetap responsif; Qty pecahan memakai isian SN per baris.
+- SN tetap berupa teks pada CSV. Koma/newline dari data lama tetap terbaca. Mengurangi Qty tidak menghapus SN yang sudah terisi secara diam-diam: SN berlebih tetap disimpan dan tersedia tindakan untuk menghapusnya. Invoice mencetak hanya SN yang terisi, satu per baris.
+- Dashboard menampilkan Total modal sebagai jumlah nilai stok saat ini berdasarkan HPP. Termasuk stok barang nonaktif yang masih tersisa. Angka ini tidak mengikuti filter periode penjualan; catatan pada kartu membedakannya dari metrik periode.
+- Menu pendaftaran pabrik dihapus. Field pilihan pemasok pada pembelian, order pembelian, dan pelunasan dihilangkan. Nama Order pabrik/Hutang pabrik diganti menjadi Order pembelian/Hutang pembelian.
+- Satu relasi pemasok ditangani otomatis untuk menjaga konsistensi transaksi dan hutang. Jika sudah ada pemasok lama, ID-nya dipakai kembali; dokumen dan saldo historis tetap utuh. Jika belum ada, aplikasi menyiapkan pemasok internal tanpa langkah pendaftaran pengguna.
+- Dua puluh satu pengujian domain dan dua belas pengujian browser lolos lokal, mencakup SN/draf/invoice, perubahan Qty, Qty besar/pecahan, modal berdasarkan mutasi stok, pemasok lama, pembelian tanpa pendaftaran, dan pelunasan otomatis.
+
 ## Penyimpanan dan keamanan
 
 Delapan CSV memuat master, dokumen, detail, pembayaran/alokasi, audit, dan pengaturan. Stok, saldo, serta data invoice diturunkan dari dokumen/snapshot yang sama, bukan file laporan terpisah. Bentuk file ini menyederhanakan daftar CSV usulan pada spesifikasi tanpa mengganti penyimpanan menjadi database lain.

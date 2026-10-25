@@ -4,14 +4,14 @@ async function nav(page: Page, name: string) {
 }
 async function contact(
   page: Page,
-  kind: "Customer" | "Pabrik / pemasok",
+  kind: "Customer",
   code: string,
   name: string,
 ) {
   await nav(page, kind);
   await page
     .getByRole("button", {
-      name: kind === "Customer" ? "Tambah customer" : "Tambah pemasok",
+      name: "Tambah customer",
       exact: true,
     })
     .click();
@@ -34,15 +34,14 @@ async function document(
   await nav(page, kind);
   await page.getByRole("button", { name: `${kind} baru`, exact: true }).click();
   const f = page.getByRole("dialog");
-  const partyField = f.getByRole("combobox", {
-    name:
-      kind.includes("pabrik") || kind === "Pembelian"
-        ? "Pabrik / pemasok"
-        : "Customer",
-    exact: true,
-  });
-  await partyField.fill(party);
-  await f.getByRole("option", { name: party, exact: true }).click();
+  if (!["Pembelian", "Order pembelian"].includes(kind)) {
+    const partyField = f.getByRole("combobox", {
+      name: "Customer",
+      exact: true,
+    });
+    await partyField.fill(party);
+    await f.getByRole("option", { name: party, exact: true }).click();
+  }
   if (order)
     await f.getByLabel("Tautkan order (opsional)").selectOption({ index: 1 });
   else {
@@ -97,9 +96,8 @@ test("alur operasional, invoice, backup, dan buka ulang", async ({
   await f.getByRole("button", { name: "Simpan", exact: true }).click();
   await expect(f).not.toBeVisible();
   await contact(page, "Customer", "C01", "Customer Uji");
-  await contact(page, "Pabrik / pemasok", "P01", "Pemasok Uji");
-  await document(page, "Order pabrik", "P01 — Pemasok Uji", "5", "120");
-  await document(page, "Pembelian", "P01 — Pemasok Uji", "5", "120", true);
+  await document(page, "Order pembelian", "", "5", "120");
+  await document(page, "Pembelian", "", "5", "120", true);
   await document(page, "Order customer", "C01 — Customer Uji", "3", "200");
   await document(
     page,
@@ -147,9 +145,7 @@ test("alur operasional, invoice, backup, dan buka ulang", async ({
     .getByRole("button", { name: "Catat pembayaran", exact: true })
     .click();
   f = page.getByRole("dialog");
-  await f
-    .getByRole("combobox", { name: "Customer / pemasok", exact: true })
-    .fill("C01");
+  await f.getByRole("combobox", { name: "Customer", exact: true }).fill("C01");
   await f
     .getByRole("option", { name: "C01 — Customer Uji", exact: true })
     .click();

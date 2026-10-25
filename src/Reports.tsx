@@ -11,6 +11,7 @@ import {
   isOrder,
   orderRemaining,
   fulfilled,
+  inventoryCapital,
 } from "./domain";
 import { Table, Empty, Field } from "./ui";
 import { exportCSV, printDocument } from "./storage";
@@ -19,7 +20,7 @@ const options = [
   ["stock", "Stok barang"],
   ["sold", "Total barang terjual"],
   ["customer_order", "Order customer"],
-  ["supplier_order", "Order pabrik"],
+  ["supplier_order", "Order pembelian"],
   ["order_total", "Total order customer"],
   ["order_customer", "Order per customer"],
   ["sale", "Transaksi penjualan"],
@@ -27,7 +28,7 @@ const options = [
   ["sale_return", "Retur penjualan"],
   ["purchase_return", "Retur pembelian"],
   ["receivable", "Hutang customer / piutang"],
-  ["payable", "Hutang pabrik"],
+  ["payable", "Hutang pembelian"],
   ["receivable_total", "Hutang total customer"],
   ["profit", "Modal / laba"],
 ];
@@ -46,11 +47,19 @@ export function Reports({
   const [codeFrom, setCodeFrom] = useState("");
   const [codeTo, setCodeTo] = useState("");
   const [party, setParty] = useState("");
+  const purchasing = [
+    "supplier_order",
+    "purchase",
+    "purchase_return",
+    "payable",
+  ].includes(report);
+  const contact = purchasing ? "" : party;
   const inCode = (s: string) =>
     (!codeFrom || s.localeCompare(codeFrom, "id", { numeric: true }) >= 0) &&
     (!codeTo || s.localeCompare(codeTo, "id", { numeric: true }) <= 0);
   const docs = activeDocs(db).filter(
-    (d) => d.date >= from && d.date <= to && (!party || d.partyId === party),
+    (d) =>
+      d.date >= from && d.date <= to && (!contact || d.partyId === contact),
   );
   let headers: string[] = [];
   let rows: (string | number)[][] = [];
@@ -60,7 +69,9 @@ export function Reports({
     rows = db.parties
       .filter(
         (p) =>
-          p.kind === "customer" && inCode(p.code) && (!party || p.id === party),
+          p.kind === "customer" &&
+          inCode(p.code) &&
+          (!contact || p.id === contact),
       )
       .map((p) => [p.code, p.name, p.address, p.city, p.phone, p.fax]);
   } else if (report === "stock") {
@@ -123,7 +134,7 @@ export function Reports({
       (p) =>
         p.kind === (report === "payable" ? "supplier" : "customer") &&
         inCode(p.code) &&
-        (!party || party === p.id),
+        (!contact || contact === p.id),
     );
     rows = parties.map((p) => [
       p.code,
@@ -200,10 +211,7 @@ export function Reports({
       ["Penjualan bersih", money(m.revenue)],
       ["HPP bersih", money(m.cogs)],
       ["Laba kotor", money(m.profit)],
-      [
-        "Nilai persediaan saat ini",
-        money(db.items.reduce((s, i) => s + stock(db, i.id).value, 0)),
-      ],
+      ["Nilai persediaan saat ini", money(inventoryCapital(db))],
       ["Pembelian bersih periode", money(m.purchases)],
     ];
     summary =
@@ -250,21 +258,25 @@ export function Reports({
             ))}
           </select>
         </Field>
-        <Field label="Kontak">
-          <SearchSelect
-            value={party}
-            placeholder="Semua kontak / cari…"
-            options={[
-              { value: "", label: "Semua kontak" },
-              ...db.parties.map((p) => ({
-                value: p.id,
-                label: `${p.code} — ${p.name}`,
-                search: p.phone,
-              })),
-            ]}
-            onChange={setParty}
-          />
-        </Field>
+        {!purchasing && (
+          <Field label="Kontak">
+            <SearchSelect
+              value={party}
+              placeholder="Semua kontak / cari…"
+              options={[
+                { value: "", label: "Semua kontak" },
+                ...db.parties
+                  .filter((p) => p.kind === "customer")
+                  .map((p) => ({
+                    value: p.id,
+                    label: `${p.code} — ${p.name}`,
+                    search: p.phone,
+                  })),
+              ]}
+              onChange={setParty}
+            />
+          </Field>
+        )}
         <Field label="Dari kode">
           <input
             placeholder="Semua"

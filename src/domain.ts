@@ -53,6 +53,34 @@ export function withLineDiscountDefaults(db: DB): DB {
     })),
   };
 }
+export function singleSupplier(db: DB): Party {
+  return (
+    db.parties.find((p) => p.kind === "supplier" && p.active) ||
+    db.parties.find((p) => p.kind === "supplier") || {
+      id: "single-supplier",
+      kind: "supplier",
+      code: "SUPPLIER",
+      name: "Pemasok",
+      address: "",
+      city: "",
+      phone: "",
+      fax: "",
+      openingBalance: 0,
+      active: true,
+    }
+  );
+}
+export function withStoreDefaults(db: DB): DB {
+  const supplier = singleSupplier(db);
+  return {
+    ...withLineDiscountDefaults(db),
+    parties: db.parties.some((p) => p.id === supplier.id)
+      ? db.parties.map((p) =>
+          p.id === supplier.id ? { ...p, active: true } : p,
+        )
+      : [...db.parties, supplier],
+  };
+}
 export const isOrder = (k: Kind) => k.endsWith("_order");
 export const isReturn = (k: Kind) => k.endsWith("_return");
 export const partyKind = (k: Kind) =>
@@ -92,6 +120,8 @@ export function stock(db: DB, itemId: string, until = "9999-12-31") {
     average: units > 0 ? value / units : 0,
   };
 }
+export const inventoryCapital = (db: DB) =>
+  db.items.reduce((total, item) => total + stock(db, item.id).value, 0);
 export function returned(db: DB, lineId: string, exclude = "") {
   return db.lines
     .filter(
@@ -176,7 +206,7 @@ export function newDoc(db: DB, kind: Kind): Doc {
     number: nextNumber(db, kind),
     date: today(),
     seq: 0,
-    partyId: "",
+    partyId: partyKind(kind) === "supplier" ? singleSupplier(db).id : "",
     partyName: "",
     partyAddress: "",
     partyPhone: "",
@@ -326,13 +356,26 @@ export function saveDoc(
   final: boolean,
 ) {
   const doc = { ...input };
+  const supplier = singleSupplier(db);
+  let parties = db.parties;
+  if (
+    partyKind(doc.kind) === "supplier" &&
+    (!doc.partyId || doc.partyId === supplier.id)
+  ) {
+    doc.partyId = supplier.id;
+    parties = db.parties.some((p) => p.id === supplier.id)
+      ? db.parties.map((p) =>
+          p.id === supplier.id ? { ...p, active: true } : p,
+        )
+      : [...db.parties, supplier];
+  }
   let lines = inputLines.map((l) => ({ ...l, docId: doc.id }));
   const old = db.documents.find((d) => d.id === doc.id);
   check(
     !old || old.status === "draft",
     "Dokumen final tidak dapat ditimpa. Batalkan dengan alasan lalu buat pengganti.",
   );
-  validateHeader(db, doc);
+  validateHeader({ ...db, parties }, doc);
   check(
     amount(doc.discount),
     "Diskon harus nominal Rupiah bulat yang tidak negatif.",
@@ -367,7 +410,7 @@ export function saveDoc(
     "Diskon retur mengikuti transaksi asal.",
   );
   doc.total = subtotal - doc.discount;
-  const p = db.parties.find((p) => p.id === doc.partyId)!;
+  const p = parties.find((p) => p.id === doc.partyId)!;
   doc.partyName = p.name;
   doc.partyAddress = [p.address, p.city].filter(Boolean).join(", ");
   doc.partyPhone = p.phone;
@@ -473,6 +516,7 @@ export function saveDoc(
     doc.kind === "sale" || !doc.downPayment,
     "Uang muka hanya dicatat otomatis pada penjualan.",
   );
+  db.parties = parties;
   db.documents = old
     ? db.documents.map((d) => (d.id === doc.id ? doc : d))
     : [...db.documents, doc];

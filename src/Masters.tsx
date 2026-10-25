@@ -12,7 +12,7 @@ export function Masters({
   busy,
 }: {
   db: DB;
-  kind: "items" | "customer" | "supplier";
+  kind: "items" | "customer";
   commit: Commit;
   busy: boolean;
 }) {
@@ -101,8 +101,7 @@ export function Masters({
         </label>
         <button className="primary" onClick={create}>
           <Plus size={17} />
-          Tambah{" "}
-          {items ? "barang" : kind === "customer" ? "customer" : "pemasok"}
+          Tambah {items ? "barang" : "customer"}
         </button>
       </Toolbar>
       <section className="panel">
@@ -191,7 +190,7 @@ export function Masters({
             title={
               search
                 ? "Data tidak ditemukan"
-                : `Belum ada ${items ? "barang" : kind === "customer" ? "customer" : "pemasok"}`
+                : `Belum ada ${items ? "barang" : "customer"}`
             }
             detail={
               search
@@ -209,7 +208,7 @@ export function Masters({
       </section>
       {editing && (
         <Modal
-          title={`${list.some((x) => x.id === editing.id) ? "Ubah" : "Tambah"} ${items ? "barang" : kind === "customer" ? "customer" : "pemasok"}`}
+          title={`${list.some((x) => x.id === editing.id) ? "Ubah" : "Tambah"} ${items ? "barang" : "customer"}`}
           onClose={() => setEditing(null)}
         >
           <form

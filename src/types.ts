@@ -137,7 +137,7 @@ export const labels: Record<Kind, string> = {
   sale: "Penjualan",
   purchase: "Pembelian",
   customer_order: "Order customer",
-  supplier_order: "Order pabrik",
+  supplier_order: "Order pembelian",
   sale_return: "Retur penjualan",
   purchase_return: "Retur pembelian",
 };

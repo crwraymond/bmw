@@ -2,7 +2,14 @@ import { NumberInput, SearchSelect } from "./inputs";
 import { useState } from "react";
 import { Plus, Ban } from "lucide-react";
 import { type DB, type Payment, uid, today, money, dateLabel } from "./types";
-import { balance, due, activeDocs, nextNumber, savePayment } from "./domain";
+import {
+  balance,
+  due,
+  activeDocs,
+  nextNumber,
+  savePayment,
+  singleSupplier,
+} from "./domain";
 import { type Commit, Toolbar, Empty, Table, Status, Modal, Field } from "./ui";
 import { exportCSV } from "./storage";
 export function Payments({
@@ -80,7 +87,7 @@ export function Payments({
           <Table
             headers={[
               "Pembayaran",
-              "Customer / pemasok",
+              "Customer / pembelian",
               "Arah",
               "Nominal",
               "Status",
@@ -97,7 +104,7 @@ export function Payments({
                 <td>
                   {p.direction === "in"
                     ? "Penerimaan customer"
-                    : "Pembayaran pemasok"}
+                    : "Pelunasan pembelian"}
                 </td>
                 <td>{money(p.amount)}</td>
                 <td>
@@ -119,7 +126,7 @@ export function Payments({
         ) : (
           <Empty
             title="Belum ada pembayaran"
-            detail="Catat penerimaan customer atau pembayaran ke pemasok, lalu alokasikan ke tagihannya."
+            detail="Catat penerimaan customer atau pelunasan pembelian, lalu alokasikan ke tagihannya."
             action={
               <button className="primary" onClick={create}>
                 Catat pembayaran pertama
@@ -164,33 +171,35 @@ export function Payments({
                     setAlloc({});
                     setEdit({
                       ...edit,
-                      partyId: "",
+                      partyId: k === "supplier" ? singleSupplier(db).id : "",
                       direction: k === "customer" ? "in" : "out",
                     });
                   }}
                 >
                   <option value="customer">Penerimaan customer</option>
-                  <option value="supplier">Pembayaran pemasok</option>
+                  <option value="supplier">Pelunasan pembelian</option>
                 </select>
               </Field>
-              <Field label="Customer / pemasok">
-                <SearchSelect
-                  required
-                  value={edit.partyId}
-                  placeholder="Cari kode atau nama kontak…"
-                  options={db.parties
-                    .filter((p) => p.kind === kind && p.active)
-                    .map((p) => ({
-                      value: p.id,
-                      label: `${p.code} — ${p.name}`,
-                      search: p.phone,
-                    }))}
-                  onChange={(value) => {
-                    setEdit({ ...edit, partyId: value });
-                    setAlloc({});
-                  }}
-                />
-              </Field>
+              {kind === "customer" && (
+                <Field label="Customer">
+                  <SearchSelect
+                    required
+                    value={edit.partyId}
+                    placeholder="Cari kode atau nama kontak…"
+                    options={db.parties
+                      .filter((p) => p.kind === kind && p.active)
+                      .map((p) => ({
+                        value: p.id,
+                        label: `${p.code} — ${p.name}`,
+                        search: p.phone,
+                      }))}
+                    onChange={(value) => {
+                      setEdit({ ...edit, partyId: value });
+                      setAlloc({});
+                    }}
+                  />
+                </Field>
+              )}
               <Field label="Nomor pembayaran">
                 <input
                   required

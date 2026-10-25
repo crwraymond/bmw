@@ -28,6 +28,9 @@ Dokumen ini adalah bahan untuk merancang dan membangun aplikasi, bukan pernyataa
 - Halaman dashboard menampilkan total penjualan, total keuntungan, jumlah transaksi, dan ringkasan operasional dengan filter periode.
 - Permintaan awal adalah menyusun dokumen Markdown, lalu pengguna meminta implementasi aplikasi.
 - Tambahan kebutuhan: diskon dapat diatur pada masing-masing produk. Implementasi menyediakan persen atau Rupiah per unit, serta mempertahankan diskon total sebagai potongan tambahan.
+- Tambahan kebutuhan: jumlah kotak serial number mengikuti Qty barang.
+- Tambahan kebutuhan: dashboard menampilkan total modal; implementasi memakai nilai persediaan terkini berdasarkan HPP.
+- Penyederhanaan pabrik: hanya satu pemasok dan pengguna tidak perlu mendaftarkan atau memilihnya. Pembelian, retur pembelian, order, serta pelunasan tetap tersedia.
 
 Target sistem operasi sudah ditentukan pengguna: **Windows**. Implementasi awal memilih Windows x64 dan installer NSIS `.exe`, dengan build melalui GitHub Actions. Pratinjau web tetap dapat dijalankan di macOS untuk pengembangan.
 

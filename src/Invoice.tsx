@@ -4,6 +4,7 @@ import { type DB, type Doc, type Line, money, qty } from "./types";
 import { displayNumber } from "./numberFormat";
 import { linesOf, lineDiscount, lineNet } from "./domain";
 import { printDocument } from "./storage";
+import { serialText } from "./serials";
 function InvoiceMoney({ value }: { value: number }) {
   return (
     <div className="invoice-money">
@@ -206,9 +207,7 @@ export function Invoice({
                           {linesOf(db, doc.id).findIndex((x) => x.id === l.id) +
                             1}
                         </td>
-                        <td className="serial-cell">
-                          {l.serials ? l.serials.replace(/,\s*/g, "\n") : ""}
-                        </td>
+                        <td className="serial-cell">{serialText(l.serials)}</td>
                         <td>
                           {l.name}
                           {lineDiscount(l) > 0 && (

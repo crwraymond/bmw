@@ -17,6 +17,7 @@ import {
   stock,
   isOrder,
   orderRemaining,
+  inventoryCapital,
 } from "./domain";
 import { Empty, Table } from "./ui";
 export function Dashboard({
@@ -126,6 +127,13 @@ export function Dashboard({
             page: "reports",
           },
           {
+            label: "Total modal",
+            value: money(inventoryCapital(db)),
+            note: "Nilai stok saat ini · berdasarkan HPP",
+            icon: PackageOpen,
+            page: "items",
+          },
+          {
             label: "Jumlah transaksi",
             value: String(m.count),
             note: "Penjualan final pada periode ini",
@@ -140,7 +148,11 @@ export function Dashboard({
             page: "sale",
           },
         ].map(({ label, value, note, icon: Icon, page }) => (
-          <button className="stat" key={label} onClick={() => onGo(page)}>
+          <button
+            className={`stat ${label === "Total modal" ? "capital-stat" : ""}`}
+            key={label}
+            onClick={() => onGo(page)}
+          >
             <div>
               <span>{label}</span>
               <Icon size={20} />
@@ -203,7 +215,7 @@ export function Dashboard({
             <ArrowUpRight size={16} />
           </button>
           <button onClick={() => onGo("reports")}>
-            <span>Hutang pemasok</span>
+            <span>Hutang pembelian</span>
             <strong>{money(payable)}</strong>
             <ArrowUpRight size={16} />
           </button>

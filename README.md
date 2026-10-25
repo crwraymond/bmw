@@ -56,9 +56,10 @@ Hasil installer berada di `src-tauri\target\release\bundle\nsis\`. Build macOS t
 
 ## Fitur yang diimplementasikan
 
-- Dashboard dengan filter periode, penjualan bersih, laba kotor, jumlah transaksi, rata-rata nota, tren, produk terlaris, piutang/hutang, dan stok minimum.
-- Barang, customer, dan pemasok: tambah, ubah, cari, aktif/nonaktif, stok/saldo awal.
-- Order customer/pabrik, pemenuhan sebagian melalui transaksi terkait, dan sisa order.
+- Dashboard dengan filter periode, penjualan bersih, laba kotor, jumlah transaksi, rata-rata nota, total modal barang dari nilai stok terkini, tren, produk terlaris, piutang/hutang, dan stok minimum.
+- Barang dan customer: tambah, ubah, cari, aktif/nonaktif, stok/saldo awal.
+- Pemasok tunggal otomatis: tidak perlu mendaftarkan atau memilih pabrik. Relasi pembelian, retur, dan pelunasan ditangani aplikasi.
+- Order customer/pembelian, pemenuhan sebagian melalui transaksi terkait, dan sisa order.
 - Penjualan/pembelian: draf, final, diskon produk (% atau Rp/unit), diskon total tambahan, pencarian, detail, pembatalan dengan alasan.
 - Input kode barang langsung mengaktifkan Tambah baris; Enter menambahkan barang dan pengulangan kode menaikkan Qty.
 - Pencarian barang/customer/pemasok tersedia langsung di field pilihan.
@@ -66,6 +67,7 @@ Hasil installer berada di `src-tauri\target\release\bundle\nsis\`. Build macOS t
 - Uang muka penjualan dicatat sekaligus sebagai pembayaran teralokasi.
 - Retur penjualan/pembelian yang mengacu transaksi asal, termasuk batas kuantitas dan diskon proporsional.
 - Pelunasan parsial/penuh, alokasi per tagihan, serta pembatalan pembayaran.
+- SN memiliki satu kotak per unit untuk Qty bulat; nilainya ikut disimpan pada draf dan dicetak pada invoice.
 - Invoice normal, COPY, atau keduanya; logo penerbit/mitra, SN, rekening, garansi, snapshot identitas, pemisahan halaman, serta dialog cetak/PDF sistem.
 - Seluruh kategori laporan dari referensi lama, filter kode/kontak/periode, ekspor CSV, dan cetak laporan.
 - Profil toko, backup/pemulihan, audit aktivitas, serta kunci password lokal opsional (Argon2).
@@ -116,6 +118,8 @@ src/types.ts          Model data dan format tampilan
 src/domain.ts         Aturan transaksi, stok, biaya, saldo, dan metrik
 src/inputs.tsx        Pilihan dengan pencarian dan input angka terformat
 src/numberFormat.ts   Format angka saat mengetik dan parsing nilai
+src/SerialInputs.tsx  Input SN per unit sesuai Qty
+src/serials.ts        Pembacaan SN lama dan teks cetak
 src/storage.ts        Adapter desktop CSV dan pratinjau browser
 src/App.tsx           Navigasi, sesi, commit, dan konfirmasi
 src/Dashboard.tsx     Dashboard

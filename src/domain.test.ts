@@ -27,6 +27,9 @@ import {
   withLineDiscountDefaults,
   lineDiscount,
   lineNet,
+  inventoryCapital,
+  singleSupplier,
+  withStoreDefaults,
 } from "./domain";
 function setup() {
   const db = emptyDB();
@@ -118,6 +121,70 @@ function payment(db: DB, partyId: string, docId: string, amount: number) {
 }
 
 describe("integritas transaksi", () => {
+  it("modal persediaan mengikuti HPP pembelian, penjualan, dan retur", () => {
+    const { db, item, c, s } = setup();
+    expect(inventoryCapital(db)).toBe(1000);
+    const purchase = newDoc(db, "purchase");
+    purchase.partyId = s.id;
+    saveDoc(
+      db,
+      purchase,
+      [
+        {
+          ...newLine(db, purchase.id, item.id, "purchase"),
+          qty: 10,
+          price: 200,
+          discountType: "percent",
+          discountValue: 10,
+        },
+      ],
+      true,
+    );
+    expect(inventoryCapital(db)).toBe(2800);
+    const sale = doc(db, "sale", item.id, c.id, 3);
+    expect(inventoryCapital(db)).toBe(2380);
+    ret(db, sale.id, 1);
+    expect(inventoryCapital(db)).toBe(2520);
+    ret(db, purchase.id, 2);
+    expect(inventoryCapital(db)).toBe(2240);
+    db.items[0].active = false;
+    expect(inventoryCapital(db)).toBe(2240);
+    validateDB(db);
+  });
+  it("pemasok tetap dibuat otomatis hanya setelah pembelian valid", () => {
+    const { db, item } = setup();
+    db.parties = db.parties.filter((p) => p.kind === "customer");
+    const purchase = newDoc(db, "purchase");
+    const line = newLine(db, purchase.id, item.id, "purchase");
+    expect(() => saveDoc(db, purchase, [{ ...line, price: -1 }], true)).toThrow(
+      "harga",
+    );
+    expect(db.parties.filter((p) => p.kind === "supplier")).toHaveLength(0);
+    saveDoc(db, purchase, [line], true);
+    const supplier = singleSupplier(db);
+    expect(db.parties.filter((p) => p.kind === "supplier")).toHaveLength(1);
+    expect(db.documents[0].partyId).toBe(supplier.id);
+    expect(newDoc(db, "supplier_order").partyId).toBe(supplier.id);
+    ret(db, purchase.id, 1);
+    expect(balance(db, supplier.id)).toBe(0);
+    validateDB(db);
+  });
+  it("pemasok lama dipakai kembali dan relasi dokumen tetap utuh", () => {
+    const { db, item, s } = setup();
+    doc(db, "purchase", item.id, s.id, 2);
+    const prepared = withStoreDefaults(db);
+    expect(prepared.parties.filter((p) => p.kind === "supplier")).toHaveLength(
+      1,
+    );
+    expect(singleSupplier(prepared).id).toBe(s.id);
+    expect(prepared.documents).toEqual(db.documents);
+    expect(prepared.lines.map((l) => l.total)).toEqual(
+      db.lines.map((l) => l.total),
+    );
+    expect(newDoc(prepared, "purchase").partyId).toBe(s.id);
+    expect(withStoreDefaults(prepared).parties).toEqual(prepared.parties);
+    validateDB(prepared);
+  });
   it("diskon persen dan Rupiah per unit dialokasikan bersama diskon total", () => {
     const { db, item, c } = setup();
     const second = { ...item, id: uid(), code: "002" };

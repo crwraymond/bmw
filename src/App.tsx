@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   Boxes,
   UsersRound,
-  Factory,
   ClipboardList,
   ShoppingCart,
   ShoppingBag,
@@ -48,7 +47,6 @@ const sections = [
       { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
       { id: "items", name: "Barang & stok", icon: Boxes },
       { id: "customer", name: "Customer", icon: UsersRound },
-      { id: "supplier", name: "Pabrik / pemasok", icon: Factory },
     ],
   },
   {
@@ -57,7 +55,7 @@ const sections = [
       { id: "sale", name: "Penjualan", icon: ShoppingBag },
       { id: "purchase", name: "Pembelian", icon: ShoppingCart },
       { id: "customer_order", name: "Order customer", icon: ClipboardList },
-      { id: "supplier_order", name: "Order pabrik", icon: ClipboardList },
+      { id: "supplier_order", name: "Order pembelian", icon: ClipboardList },
       { id: "sale_return", name: "Retur penjualan", icon: RotateCcw },
       { id: "purchase_return", name: "Retur pembelian", icon: RotateCcw },
       { id: "payments", name: "Pelunasan", icon: ArrowLeftRight },
@@ -474,11 +472,11 @@ function App() {
           {page === "dashboard" && (
             <Dashboard db={db} from={from} to={to} onNew={create} onGo={go} />
           )}
-          {["items", "customer", "supplier"].includes(page) && (
+          {["items", "customer"].includes(page) && (
             <Masters
               key={page}
               db={db}
-              kind={page as "items" | "customer" | "supplier"}
+              kind={page as "items" | "customer"}
               commit={commit}
               busy={busy}
             />

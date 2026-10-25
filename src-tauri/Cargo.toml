@@ -1,6 +1,6 @@
 [package]
 name = "toko-offline"
-version = "0.1.2"
+version = "0.1.3"
 description = "Aplikasi toko offline dengan penyimpanan CSV"
 edition = "2024"
 
