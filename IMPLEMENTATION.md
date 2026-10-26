@@ -189,3 +189,7 @@ Reproduksi invoice dengan DP menunjukkan penghapusan ditolak oleh validasi relas
 Dialog hapus dokumen menampilkan nomor dan nominal pembayaran terkait, tombol Buka Pelunasan, serta checkbox tidak tercentang **Hapus juga pembayaran khusus dokumen ini** hanya jika seluruh pembayaran tersebut sepenuhnya dialokasikan ke dokumen itu. Penghapusan invoice dengan pembayaran tetap ditolak tanpa pilihan eksplisit. Pembayaran gabungan beberapa invoice atau sebagian untuk saldo awal tidak boleh ikut dihapus; pengguna harus mengatur alokasinya di Pelunasan. Dokumen turunan dan urutan mutasi tetap divalidasi. Seluruh pembayaran/alokasi dan dokumen dihapus pada satu salinan data, sehingga kegagalan validasi berikutnya tidak menghapus sebagian data. Pengujian hanya memakai data terisolasi; tidak menghapus invoice pengguna.
 
 Verifikasi perbaikan: regresi awal gagal karena alert tidak ditemukan di dalam dialog; setelah perbaikan seluruh 89 tes unit dan 46 tes browser lolos. TypeScript dan format source lolos. Belum build atau push.
+
+## Kompatibilitas akhir baris skrip rilis Windows
+
+Workflow run 7/8 berhenti pada tes versi karena regex versi Cargo hanya menerima LF, sedangkan checkout Windows menghasilkan CRLF. Reproduksi lokal dengan fixture CRLF menghasilkan error identik `Desktop package version was not found`. Regex untuk Cargo.toml dan Cargo.lock sekarang menerima LF maupun CRLF sambil mempertahankan akhir baris asli. Tiga tes versi/rilis lolos, termasuk regresi Windows CRLF; pengaturan signature, backup, dan data toko tidak berubah.

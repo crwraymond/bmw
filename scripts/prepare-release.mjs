@@ -35,9 +35,9 @@ export function prepareRelease(root, run) {
   const version = releaseVersion(pkg.version, run);
   let cargo = readFileSync(resolve(root, "src-tauri/Cargo.toml"), "utf8");
   let cargoLock = readFileSync(resolve(root, "src-tauri/Cargo.lock"), "utf8");
-  const packageVersion = /(\[package\][\s\S]*?\nversion = ")[^"]+("\n)/;
+  const packageVersion = /(\[package\][\s\S]*?\r?\nversion = ")[^"]+("\r?\n)/;
   const lockedVersion =
-    /(\[\[package\]\]\nname = "toko-offline"\nversion = ")[^"]+("\n)/;
+    /(\[\[package\]\]\r?\nname = "toko-offline"\r?\nversion = ")[^"]+("\r?\n)/;
   if (!packageVersion.test(cargo) || !lockedVersion.test(cargoLock))
     throw new Error("Desktop package version was not found");
   cargo = cargo.replace(packageVersion, `$1${version}$2`);
