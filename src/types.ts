@@ -1,3 +1,4 @@
+import { invoiceDefaults } from "./invoiceDefaults";
 export type Kind =
   | "sale"
   | "purchase"
@@ -33,6 +34,7 @@ export interface Party {
 }
 export interface Settings {
   id: string;
+  invoiceIssuer?: string;
   name: string;
   address: string;
   phone: string;
@@ -47,6 +49,9 @@ export interface Settings {
   signature: string;
   logo: string;
   partnerLogo: string;
+  brandingVersion?: number;
+  invoiceDefaultsVersion?: number;
+  invoiceTextDefaultsVersion?: number;
 }
 export interface Doc {
   id: string;
@@ -81,6 +86,7 @@ export interface Doc {
   partnerLogo: string;
   createdAt: string;
   cancelReason: string;
+  invoiceDefaultsVersion?: number;
 }
 export interface Line {
   id: string;
@@ -107,6 +113,7 @@ export interface Payment {
   direction: "in" | "out";
   notes: string;
   status: "final" | "cancelled";
+  sourceDocId?: string;
 }
 export interface Allocation {
   id: string;
@@ -176,20 +183,12 @@ export function emptyDB(): DB {
     settings: [
       {
         id: "store",
-        name: "Toko Offline",
-        address: "",
-        phone: "",
-        bank: "",
-        beneficiary: "",
-        account: "",
-        bankBranch: "",
-        bankCode: "",
-        country: "Indonesia",
-        warranty: "",
-        terms: "Pembayaran sesuai kesepakatan.",
-        signature: "",
-        logo: "",
-        partnerLogo: "",
+        ...invoiceDefaults,
+        name: "Mitra Ecobike",
+        invoiceIssuer: invoiceDefaults.name,
+        brandingVersion: 1,
+        invoiceDefaultsVersion: 1,
+        invoiceTextDefaultsVersion: 1,
       },
     ],
   };

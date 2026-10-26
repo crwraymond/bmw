@@ -1,6 +1,9 @@
+import { ImportCSV } from "./ImportCSV";
+import { exportData } from "./dataImport";
 import { NumberInput, SearchSelect } from "./inputs";
 import { useState } from "react";
-import { Plus, Ban } from "lucide-react";
+import { Plus, Ban, Pencil, Check } from "lucide-react";
+import { revisePayment } from "./revisions";
 import { type DB, type Payment, uid, today, money, dateLabel } from "./types";
 import {
   balance,
@@ -9,6 +12,9 @@ import {
   nextNumber,
   savePayment,
   singleSupplier,
+  paid,
+  returnedValue,
+  settleInvoice,
 } from "./domain";
 import { type Commit, Toolbar, Empty, Table, Status, Modal, Field } from "./ui";
 import { exportCSV } from "./storage";
@@ -35,12 +41,24 @@ export function Payments({
     )
     .slice()
     .reverse();
+  const bills = activeDocs(db)
+    .filter(
+      (d) =>
+        ["sale", "purchase"].includes(d.kind) &&
+        `${d.number} ${d.partyName} ${db.parties.find((p) => p.id === d.partyId)?.name ?? ""}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+    )
+    .sort((a, b) => b.seq - a.seq);
   const invoices = edit
     ? activeDocs(db).filter(
         (d) =>
           d.partyId === edit.partyId &&
           d.kind === (kind === "customer" ? "sale" : "purchase") &&
-          due(db, d.id) > 0,
+          (due(db, d.id) > 0 ||
+            db.allocations.some(
+              (a) => a.paymentId === edit.id && a.docId === d.id,
+            )),
       )
     : [];
   const create = () => {
@@ -57,38 +75,133 @@ export function Payments({
       status: "final",
     });
   };
+  const openEdit = (payment: Payment) => {
+    setKind(
+      db.parties.find((p) => p.id === payment.partyId)?.kind || "customer",
+    );
+    setAlloc(
+      Object.fromEntries(
+        db.allocations
+          .filter((a) => a.paymentId === payment.id)
+          .map((a) => [a.docId, a.amount]),
+      ),
+    );
+    setEdit({ ...payment });
+  };
   return (
     <>
       <Toolbar
         search={search}
         setSearch={setSearch}
-        onExport={() =>
-          exportCSV(
-            "pembayaran.csv",
-            ["Nomor", "Tanggal", "Pihak", "Arah", "Nominal", "Status"],
-            list.map((p) => [
-              p.number,
-              p.date,
-              db.parties.find((x) => x.id === p.partyId)?.name || "",
-              p.direction,
-              p.amount,
-              p.status,
-            ]),
-          )
-        }
+        onExport={() => {
+          const data = exportData(
+            db,
+            "payments",
+            list.map((p) => p.id),
+          );
+          exportCSV("pembayaran.csv", data.headers, data.rows);
+        }}
       >
+        <ImportCSV db={db} target="payments" commit={commit} busy={busy} />
         <button className="primary" onClick={create}>
           <Plus size={17} />
           Catat pembayaran
         </button>
       </Toolbar>
-      <section className="panel">
+      <section className="panel settlement-bills" aria-label="Daftar tagihan">
+        <div className="section-heading">
+          <h3>Tagihan penjualan & pembelian</h3>
+        </div>
+        {bills.length ? (
+          <Table
+            headers={[
+              "Tagihan",
+              "Customer / pembelian",
+              "Total tagihan",
+              "Sudah dibayar",
+              "Sisa",
+              "Status",
+              "Aksi",
+            ]}
+          >
+            {bills.map((d) => {
+              const remaining = due(db, d.id);
+              const returned = returnedValue(db, d.id);
+              return (
+                <tr key={d.id}>
+                  <td>
+                    <strong>{d.number}</strong>
+                    <small>
+                      {dateLabel(d.date)} ·{" "}
+                      {d.kind === "sale" ? "Penjualan" : "Pembelian"}
+                    </small>
+                  </td>
+                  <td>
+                    {db.parties.find((p) => p.id === d.partyId)?.name ??
+                      d.partyName}
+                  </td>
+                  <td>
+                    {money(d.total)}
+                    {returned > 0 && <small>Retur: {money(returned)}</small>}
+                  </td>
+                  <td>{money(paid(db, d.id))}</td>
+                  <td>
+                    {money(Math.max(0, remaining))}
+                    {remaining < 0 && (
+                      <small>Kredit: {money(-remaining)}</small>
+                    )}
+                  </td>
+                  <td>
+                    <span
+                      className={`badge ${remaining > 0 ? "warning" : "final"}`}
+                    >
+                      {remaining > 0 ? "Belum lunas" : "Lunas"}
+                    </span>
+                  </td>
+                  <td className="settlement-actions">
+                    <div className="settlement-action">
+                      <button
+                        type="button"
+                        className={remaining > 0 ? "primary" : ""}
+                        aria-label={`${remaining > 0 ? "Lunasi" : "Lunas"} ${d.number}`}
+                        title={
+                          remaining > 0
+                            ? `Catat pembayaran ${money(remaining)} untuk ${d.number}`
+                            : "Tagihan sudah lunas"
+                        }
+                        disabled={busy || remaining <= 0}
+                        onClick={() =>
+                          commit(
+                            (next) => settleInvoice(next, d.id),
+                            `Tagihan ${d.number} lunas`,
+                          )
+                        }
+                      >
+                        <Check size={15} />
+                        {remaining > 0 ? "Lunasi" : "Lunas"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </Table>
+        ) : (
+          <Empty
+            title={search ? "Tagihan tidak ditemukan" : "Belum ada tagihan"}
+            detail="Nota penjualan dan faktur pembelian yang sudah disahkan akan tampil di sini."
+          />
+        )}
+      </section>
+      <section className="panel" aria-label="Riwayat pembayaran">
+        <div className="section-heading">
+          <h3>Riwayat pembayaran</h3>
+        </div>
         {list.length ? (
           <Table
             headers={[
               "Pembayaran",
               "Customer / pembelian",
-              "Arah",
               "Nominal",
               "Status",
               "",
@@ -101,23 +214,26 @@ export function Payments({
                   <small>{dateLabel(p.date)}</small>
                 </td>
                 <td>{db.parties.find((x) => x.id === p.partyId)?.name}</td>
-                <td>
-                  {p.direction === "in"
-                    ? "Penerimaan customer"
-                    : "Pelunasan pembelian"}
-                </td>
                 <td>{money(p.amount)}</td>
                 <td>
                   <Status value={p.status} />
                 </td>
                 <td>
                   {p.status === "final" && (
-                    <button
-                      title="Batalkan pembayaran"
-                      onClick={() => onCancel(p)}
-                    >
-                      <Ban size={15} />
-                    </button>
+                    <div className="row-actions">
+                      <button
+                        title="Edit pembayaran"
+                        onClick={() => openEdit(p)}
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        title="Batalkan pembayaran"
+                        onClick={() => onCancel(p)}
+                      >
+                        <Ban size={15} />
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -137,7 +253,11 @@ export function Payments({
       </section>
       {edit && (
         <Modal
-          title="Catat pembayaran / pelunasan"
+          title={
+            db.payments.some((p) => p.id === edit.id)
+              ? "Edit pembayaran"
+              : "Catat pembayaran / pelunasan"
+          }
           onClose={() => setEdit(null)}
           wide
         >
@@ -147,7 +267,9 @@ export function Payments({
               if (
                 await commit(
                   (d) =>
-                    savePayment(
+                    (d.payments.some((p) => p.id === edit.id)
+                      ? revisePayment
+                      : savePayment)(
                       d,
                       edit,
                       Object.entries(alloc).map(([docId, amount]) => ({
@@ -187,7 +309,11 @@ export function Payments({
                     value={edit.partyId}
                     placeholder="Cari kode atau nama kontak…"
                     options={db.parties
-                      .filter((p) => p.kind === kind && p.active)
+                      .filter(
+                        (p) =>
+                          p.kind === kind &&
+                          (p.active || p.id === edit.partyId),
+                      )
                       .map((p) => ({
                         value: p.id,
                         label: `${p.code} — ${p.name}`,
@@ -254,7 +380,17 @@ export function Payments({
                           <NumberInput
                             aria-label={`Alokasi ${d.number}`}
                             min="0"
-                            max={due(db, d.id)}
+                            max={Math.max(
+                              due(db, d.id) +
+                                (db.allocations.find(
+                                  (a) =>
+                                    a.paymentId === edit.id && a.docId === d.id,
+                                )?.amount || 0),
+                              db.allocations.find(
+                                (a) =>
+                                  a.paymentId === edit.id && a.docId === d.id,
+                              )?.amount || 0,
+                            )}
                             value={alloc[d.id] || 0}
                             onValueChange={(value) =>
                               setAlloc({

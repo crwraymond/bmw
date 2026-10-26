@@ -56,23 +56,34 @@ Hasil installer berada di `src-tauri\target\release\bundle\nsis\`. Build macOS t
 
 ## Fitur yang diimplementasikan
 
-- Dashboard dengan filter periode, penjualan bersih, laba kotor, jumlah transaksi, rata-rata nota, total modal barang dari nilai stok terkini, tren, produk terlaris, piutang/hutang, dan stok minimum.
-- Barang dan customer: tambah, ubah, cari, aktif/nonaktif, stok/saldo awal.
+- Dashboard dengan filter periode, penjualan bersih, laba kotor, jumlah transaksi, rata-rata nota, total modal dari nilai stok awal + seluruh pembelian final bersih setelah retur pembelian, tren, produk terlaris, piutang/hutang, dan stok minimum. Penjualan tidak mengurangi total modal; nilai persediaan tersisa tetap tersedia di laporan Modal / laba.
+- Tema gelap menjadi bawaan. Tombol matahari/bulan di kanan atas mengganti tema terang/gelap; pilihan disimpan pada perangkat. Invoice dan hasil cetak tetap putih dengan teks/border hitam.
+- Barang dan customer: tambah, ubah, cari, aktif/nonaktif. Barang baru mulai dengan stok nol; stok dan modal bertambah melalui pembelian final. Form barang tidak menyediakan isian stok/nilai stok awal. Data stok historis yang sudah ada tetap dipertahankan; saldo awal customer tetap tersedia.
 - Pemasok tunggal otomatis: tidak perlu mendaftarkan atau memilih pabrik. Relasi pembelian, retur, dan pelunasan ditangani aplikasi.
 - Order customer/pembelian, pemenuhan sebagian melalui transaksi terkait, dan sisa order.
-- Penjualan/pembelian: draf, final, diskon produk (% atau Rp/unit), diskon total tambahan, pencarian, detail, pembatalan dengan alasan.
+- Penjualan/pembelian: draf, final, edit langsung dengan perhitungan ulang stok/HPP dan audit, diskon produk (% atau Rp/unit), diskon total tambahan, pencarian, detail, pembatalan dengan alasan.
 - Input kode barang langsung mengaktifkan Tambah baris; Enter menambahkan barang dan pengulangan kode menaikkan Qty.
 - Pencarian barang/customer/pemasok tersedia langsung di field pilihan.
 - Input angka memakai pemisah ribuan Indonesia, koma untuk desimal kuantitas, dan menghapus nol di depan.
 - Uang muka penjualan dicatat sekaligus sebagai pembayaran teralokasi.
 - Retur penjualan/pembelian yang mengacu transaksi asal, termasuk batas kuantitas dan diskon proporsional.
-- Pelunasan parsial/penuh, alokasi per tagihan, serta pembatalan pembayaran.
+- Pelunasan parsial/penuh, alokasi per tagihan, edit pembayaran, serta pembatalan pembayaran.
 - SN memiliki satu kotak per unit untuk Qty bulat; nilainya ikut disimpan pada draf dan dicetak pada invoice.
-- Invoice normal, COPY, atau keduanya; logo penerbit/mitra, SN, rekening, garansi, snapshot identitas, pemisahan halaman, serta dialog cetak/PDF sistem.
+- Invoice normal, COPY, atau keduanya; proporsi cetak mengikuti referensi lima barang, logo Mitra Ecobike/Phylion bawaan, garansi lengkap, rekening BCA, SN, serta pemisahan halaman dan dialog cetak/PDF sistem.
+- Garansi, syarat pembayaran, dan negara memiliki teks bawaan untuk seluruh profil toko, dengan reset per bagian; penandatangan kosong mengikuti nama penerbit. Data khusus dan rekening pengguna tetap dipertahankan.
+- Data invoice bawaan bisa diubah melalui Pengaturan; setiap logo mempunyai tombol **Reset ke bawaan** yang mengembalikan potongan logo asli dari contoh. Pratinjau/cetak otomatis memakai **Pengaturan tersimpan**. Pilihan **Profil saat transaksi** menampilkan snapshot lama; **Simpan profil ke dokumen** menyimpan profil terbaru ke snapshot secara eksplisit tanpa mengubah barang, stok, atau pembayaran.
 - Seluruh kategori laporan dari referensi lama, filter kode/kontak/periode, ekspor CSV, dan cetak laporan.
+- Impor CSV barang, customer, semua transaksi/order/retur, serta pembayaran dan alokasinya: Upsert atau Replace, template, pratinjau, dan validasi atomik. Pengaturan menyediakan ekspor/impor gabungan seluruh data operasional.
+- Identitas sidebar mengikuti nama toko; logo Mitra Ecobike tersedia sebagai bawaan dan bisa diganti melalui Pengaturan.
 - Profil toko, backup/pemulihan, audit aktivitas, serta kunci password lokal opsional (Argon2).
 
 Detail kebutuhan dan asal referensi: [PROJECT_SPEC.md](PROJECT_SPEC.md). Keputusan implementasi dan batas yang perlu ditinjau pengguna: [IMPLEMENTATION.md](IMPLEMENTATION.md).
+
+## Impor CSV
+
+Tombol **Impor CSV** tersedia pada halaman barang, customer, dokumen, dan pembayaran. **Upsert** menambah/memperbarui kode atau nomor yang sama; **Replace** mengganti jenis data yang disertakan dalam file. Pratinjau perubahan harus diperiksa sebelum diterapkan. Untuk seluruh data operasional sekaligus gunakan **Pengaturan → Ekspor semua data (CSV) / Impor data (CSV)**.
+
+Lihat [IMPORT_CSV.md](IMPORT_CSV.md) untuk format, contoh, aturan relasi, dan perbedaan dengan backup lengkap.
 
 ## Penyimpanan desktop
 
@@ -116,11 +127,17 @@ Pengujian browser menjalankan fixture pada penyimpanan terisolasi dan memeriksa 
 ```text
 src/types.ts          Model data dan format tampilan
 src/domain.ts         Aturan transaksi, stok, biaya, saldo, dan metrik
+src/revisions.ts      Edit langsung dan perhitungan ulang transaksi secara atomik
+src/branding.ts       Aset logo Mitra Ecobike dan Phylion bawaan
+src/invoiceDefaults.ts Profil, rekening, dan ketentuan dari referensi invoice
 src/inputs.tsx        Pilihan dengan pencarian dan input angka terformat
 src/numberFormat.ts   Format angka saat mengetik dan parsing nilai
 src/SerialInputs.tsx  Input SN per unit sesuai Qty
 src/serials.ts        Pembacaan SN lama dan teks cetak
 src/storage.ts        Adapter desktop CSV dan pratinjau browser
+src/csv.ts            Parser/serializer CSV dan angka Indonesia
+src/dataImport.ts     Ekspor lengkap, perencanaan Upsert/Replace dan validasi relasi
+src/ImportCSV.tsx     Unggah, pratinjau, template dan penerapan impor
 src/App.tsx           Navigasi, sesi, commit, dan konfirmasi
 src/Dashboard.tsx     Dashboard
 src/Masters.tsx       Barang dan kontak

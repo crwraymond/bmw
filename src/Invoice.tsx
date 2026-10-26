@@ -1,5 +1,6 @@
+import { invoiceProfile } from "./invoiceDefaults";
 import { useLayoutEffect, useRef, useState } from "react";
-import { Printer, X } from "lucide-react";
+import { Printer, X, RefreshCw } from "lucide-react";
 import { type DB, type Doc, type Line, money, qty } from "./types";
 import { displayNumber } from "./numberFormat";
 import { linesOf, lineDiscount, lineNet } from "./domain";
@@ -19,18 +20,45 @@ type Sheet = {
   summary: boolean;
   final: boolean;
 };
-export function Invoice({
-  db,
-  doc,
-  mode,
-  onClose,
-  onError,
-}: {
+type ProfileSource = "settings" | "saved";
+type InvoiceProps = {
   db: DB;
   doc: Doc;
   mode: "normal" | "copy" | "both";
   onClose: () => void;
   onError: (s: string) => void;
+  busy?: boolean;
+  onRefreshProfile?: () => Promise<boolean>;
+};
+export function Invoice(props: InvoiceProps) {
+  const [source, setSource] = useState<ProfileSource>("settings");
+  const doc =
+    source === "settings"
+      ? { ...props.doc, ...invoiceProfile(props.db.settings[0]) }
+      : props.doc;
+  return (
+    <InvoicePages
+      key={source}
+      {...props}
+      doc={doc}
+      source={source}
+      onSourceChange={setSource}
+    />
+  );
+}
+function InvoicePages({
+  db,
+  doc,
+  mode,
+  onClose,
+  onError,
+  busy = false,
+  onRefreshProfile,
+  source,
+  onSourceChange,
+}: InvoiceProps & {
+  source: ProfileSource;
+  onSourceChange: (source: ProfileSource) => void;
 }) {
   const [sheets, setSheets] = useState<Sheet[]>([
     {
@@ -108,13 +136,34 @@ export function Invoice({
           </small>
         </div>
         <div className="actions">
+          <label className="invoice-source">
+            Data penerbit
+            <select
+              aria-label="Sumber data penerbit invoice"
+              value={source}
+              onChange={(e) => onSourceChange(e.target.value as ProfileSource)}
+            >
+              <option value="settings">Pengaturan tersimpan</option>
+              <option value="saved">Profil saat transaksi</option>
+            </select>
+          </label>
+          {onRefreshProfile && source === "settings" && (
+            <button
+              disabled={busy}
+              onClick={onRefreshProfile}
+              title="Perbarui logo, penerbit, garansi, rekening, dan syarat invoice ini dari Pengaturan"
+            >
+              <RefreshCw size={16} />
+              Simpan profil ke dokumen
+            </button>
+          )}
           <button onClick={onClose}>
             <X size={16} />
             Tutup
           </button>
           <button
             className="primary"
-            disabled={overflow}
+            disabled={overflow || busy}
             onClick={async () => {
               try {
                 await printDocument();
@@ -174,11 +223,14 @@ export function Invoice({
                   <b>Issuer:</b>
                   <strong>{doc.issuerName}</strong>
                   <p>{doc.issuerAddress}</p>
-                  <p>{doc.issuerPhone}</p>
+                  <p>
+                    {doc.issuerPhone &&
+                      `T: ${doc.issuerPhone.replace(/^T:\s*/i, "")}`}
+                  </p>
                 </section>
               </div>
               <section className="invoice-account">
-                <b>For Account:</b>
+                <b>For Account :</b>
                 <strong>{doc.partyName}</strong>
                 <p>Address: {doc.partyAddress || "—"}</p>
                 <p>Contact Person: {doc.partyPhone || "—"}</p>
@@ -186,7 +238,7 @@ export function Invoice({
               {sheet.lines.length > 0 && (
                 <table className="invoice-table">
                   <colgroup>
-                    {[4.5, 18, 30.5, 6, 18, 23].map((width, index) => (
+                    {[5.1, 17.4, 30.3, 6, 18, 23.2].map((width, index) => (
                       <col key={index} style={{ width: `${width}%` }} />
                     ))}
                   </colgroup>
@@ -260,15 +312,24 @@ export function Invoice({
                   <b>Down Payment: {money(doc.downPayment || 0)}</b>
                 </section>
               )}
-              {sheet.warranty && (
+              {(sheet.warranty || sheet.final) && (
                 <section className="invoice-warranty">
-                  <b>
-                    WARRANTY TERMS & CONDITIONS
-                    {!sheet.lines.length ? " (lanjutan)" : ""}
-                  </b>
+                  {sheet.warranty && (
+                    <b>
+                      WARRANTY TERMS & CONDITIONS
+                      {!sheet.lines.length ? " (lanjutan)" : ""}
+                    </b>
+                  )}
                   <div className="warranty-text">
                     {sheet.warranty.split("\n").map((line, index) => (
-                      <div key={index}>
+                      <div
+                        key={index}
+                        className={
+                          /^Warranty is void if/i.test(line)
+                            ? "warranty-void"
+                            : undefined
+                        }
+                      >
                         {/^(Warranty is void if|Shipping costs|Syarat|Catatan)/i.test(
                           line,
                         ) ? (

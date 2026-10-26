@@ -1,3 +1,4 @@
+import { refreshInvoiceProfile } from "./domain";
 import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
@@ -17,9 +18,12 @@ import {
   Menu,
   LockKeyhole,
   HardDrive,
-  Leaf,
+  Store,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   type DB,
   type Doc,
@@ -34,12 +38,14 @@ import { load, persist, desktop, restore } from "./storage";
 import { type Commit, Modal, Field } from "./ui";
 import { Dashboard } from "./Dashboard";
 import { Masters } from "./Masters";
-import { DocumentList, Detail } from "./Documents";
+import { DocumentList, Detail, Editor } from "./Documents";
+import { defaultLogo, defaultIcon } from "./branding";
 import { Payments } from "./Payments";
 import { Reports } from "./Reports";
 import { Settings } from "./Settings";
 import { Invoice } from "./Invoice";
 import "./App.css";
+import "./theme.css";
 const sections = [
   {
     title: "Ruang kerja",
@@ -85,6 +91,32 @@ function range(preset: string) {
   return [`${end.slice(0, 7)}-01`, end];
 }
 function App() {
+  const [theme, setTheme] = useState<"dark" | "light">(
+    document.documentElement.dataset.theme === "light" ? "light" : "dark",
+  );
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    if (desktop) {
+      getCurrentWindow()
+        .setTheme(theme)
+        .catch(() => {
+          // Content theme remains available if the native frame cannot change.
+        });
+    }
+    try {
+      localStorage.setItem("toko-offline-theme", theme);
+    } catch {
+      // The selected theme still works when local preferences are unavailable.
+    }
+  }, [theme]);
+  useEffect(() => {
+    const syncTheme = (event: StorageEvent) => {
+      if (event.key === "toko-offline-theme")
+        setTheme(event.newValue === "light" ? "light" : "dark");
+    };
+    window.addEventListener("storage", syncTheme);
+    return () => window.removeEventListener("storage", syncTheme);
+  }, []);
   const [db, setDB] = useState<DB | null>(null),
     dbRef = useRef<DB | null>(null);
   const [path, setPath] = useState(""),
@@ -108,6 +140,7 @@ function App() {
       doc: Doc;
       mode: "normal" | "copy" | "both";
     } | null>(null);
+  const [editRecord, setEditRecord] = useState<Doc | null>(null);
   const [confirmation, setConfirmation] = useState<{
       type: "doc" | "payment" | "delete" | "restore";
       id: string;
@@ -134,6 +167,9 @@ function App() {
   useEffect(() => {
     reload();
   }, []);
+  useEffect(() => {
+    if (db) document.title = db.settings[0].name;
+  }, [db]);
   useEffect(() => {
     if (!notice || notice.error) return;
     const timer = setTimeout(() => setNotice(null), 4500);
@@ -238,7 +274,7 @@ function App() {
       <div className="access-page">
         <div className="access-panel">
           <div className="brand-mark">
-            <Leaf />
+            <img src={defaultIcon} alt="Mitra Ecobike" />
           </div>
           <h1>Toko Offline</h1>
           <p>Masukkan password untuk membuka data toko.</p>
@@ -318,20 +354,21 @@ function App() {
           }}
         >
           <span className="brand-mark">
-            <Leaf size={24} />
+            {db.settings[0].logo ? (
+              <img
+                src={
+                  db.settings[0].logo === defaultLogo
+                    ? defaultIcon
+                    : db.settings[0].logo
+                }
+                alt="Ikon toko"
+              />
+            ) : (
+              <Store size={24} />
+            )}
           </span>
-          <div>
-            <strong>Toko Offline</strong>
-            <small>Ruang usaha kamu</small>
-          </div>
+          <strong>{db.settings[0].name}</strong>
         </a>
-        <div className="store-name">
-          <span>{db.settings[0].name.slice(0, 1).toUpperCase()}</span>
-          <div>
-            <strong>{db.settings[0].name}</strong>
-            <small>Toko lokal</small>
-          </div>
-        </div>
         <nav>
           {sections.map((s) => (
             <section key={s.title}>
@@ -397,6 +434,23 @@ function App() {
             <strong>{pageTitles[page]}</strong>
           </div>
           <div className="top-status">
+            <button
+              type="button"
+              className="icon-button theme-toggle"
+              aria-label={
+                theme === "dark"
+                  ? "Aktifkan tema terang"
+                  : "Aktifkan tema gelap"
+              }
+              title={
+                theme === "dark"
+                  ? "Aktifkan tema terang"
+                  : "Aktifkan tema gelap"
+              }
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <i />
             {busy
               ? "Menyimpan…"
@@ -531,12 +585,26 @@ function App() {
           db={db}
           doc={detail}
           onClose={() => setDetail(null)}
+          onEdit={() => {
+            setEditRecord(detail);
+            setDetail(null);
+          }}
           onCancel={() => ask("doc", detail.id, detail.number)}
           onDelete={() => ask("delete", detail.id, detail.number)}
           onPrint={(mode) => {
             setPrint({ doc: detail, mode });
             setDetail(null);
           }}
+        />
+      )}
+      {editRecord && (
+        <Editor
+          key={editRecord.id}
+          db={db}
+          initial={editRecord}
+          commit={commit}
+          busy={busy}
+          onClose={() => setEditRecord(null)}
         />
       )}
       {confirmation && (
@@ -587,8 +655,16 @@ function App() {
       {print && (
         <Invoice
           db={db}
-          doc={print.doc}
+          key={`${print.doc.id}-${db.revision}`}
+          doc={db.documents.find((d) => d.id === print.doc.id) || print.doc}
           mode={print.mode}
+          busy={busy}
+          onRefreshProfile={() =>
+            commit(
+              (d) => refreshInvoiceProfile(d, print.doc.id),
+              "Logo, garansi, dan rekening invoice diperbarui",
+            )
+          }
           onClose={() => setPrint(null)}
           onError={(s) => notify(s, true)}
         />

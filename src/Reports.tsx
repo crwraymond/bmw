@@ -12,6 +12,7 @@ import {
   orderRemaining,
   fulfilled,
   inventoryCapital,
+  totalCapital,
 } from "./domain";
 import { Table, Empty, Field } from "./ui";
 import { exportCSV, printDocument } from "./storage";
@@ -211,11 +212,12 @@ export function Reports({
       ["Penjualan bersih", money(m.revenue)],
       ["HPP bersih", money(m.cogs)],
       ["Laba kotor", money(m.profit)],
+      ["Total modal seluruh pembelian", money(totalCapital(db))],
       ["Nilai persediaan saat ini", money(inventoryCapital(db))],
       ["Pembelian bersih periode", money(m.purchases)],
     ];
     summary =
-      "Laba kotor memakai HPP rata-rata bergerak yang dikunci saat transaksi. Nilai persediaan adalah modal barang saat ini, bukan modal usaha. Biaya operasional dan pajak belum dicatat, sehingga ini bukan laba bersih.";
+      "Laba kotor memakai HPP rata-rata bergerak yang dikunci saat transaksi. Total modal menjumlahkan nilai stok awal dan seluruh pembelian final setelah retur pembelian, tanpa berkurang saat penjualan. Nilai persediaan menunjukkan modal stok yang masih tersedia. Biaya operasional dan pajak belum dicatat, sehingga ini bukan laba bersih.";
   } else {
     headers = [
       "Tanggal",

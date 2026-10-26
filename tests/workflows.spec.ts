@@ -91,11 +91,10 @@ test("alur operasional, invoice, backup, dan buka ulang", async ({
   await f.getByLabel("Nama", { exact: true }).fill("Baterai 48V");
   await f.getByLabel("Harga beli default (Rp)").fill("100");
   await f.getByLabel("Harga jual default (Rp)").fill("200");
-  await f.getByLabel("Stok awal", { exact: true }).fill("10");
-  await f.getByLabel("Total nilai stok awal (Rp)").fill("1000");
   await f.getByRole("button", { name: "Simpan", exact: true }).click();
   await expect(f).not.toBeVisible();
   await contact(page, "Customer", "C01", "Customer Uji");
+  await document(page, "Pembelian", "", "10", "100");
   await document(page, "Order pembelian", "", "5", "120");
   await document(page, "Pembelian", "", "5", "120", true);
   await document(page, "Order customer", "C01 — Customer Uji", "3", "200");

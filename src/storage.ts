@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { type DB, emptyDB } from "./types";
 import { validateDB, audit, withStoreDefaults } from "./domain";
+import { csvText } from "./csv";
 export const desktop = isTauri();
 const key = "toko-offline-preview-v1";
 export async function load(): Promise<{ db: DB; path: string }> {
@@ -106,16 +107,7 @@ export function exportCSV(
   headers: string[],
   rows: (string | number)[][],
 ) {
-  const cell = (v: string | number) => {
-    let s = String(v);
-    if (typeof v === "string" && /^[=+@\-\t\r]/.test(s)) s = "'" + s;
-    return '"' + s.replaceAll('"', '""') + '"';
-  };
-  download(
-    name,
-    "\uFEFF" +
-      [headers, ...rows].map((r) => r.map(cell).join(",")).join("\r\n"),
-  );
+  download(name, csvText(headers, rows));
 }
 export async function printDocument() {
   if (desktop) await invoke("print_document");

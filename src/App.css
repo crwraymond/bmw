@@ -160,41 +160,20 @@ a {
   font-size: 18px;
   letter-spacing: -0.3px;
 }
-.brand small {
-  color: #a8c0cd;
-  font-size: 11px;
+.brand strong {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  font-size: 17px;
 }
-.store-name {
-  margin: 0 17px 18px;
-  border: 1px solid #3b5464;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px;
-}
-.store-name > span {
-  width: 30px;
-  height: 30px;
-  border-radius: 5px;
-  background: #405a6b;
-  display: grid;
-  place-items: center;
-  color: #e9f1f6;
-  font-weight: 600;
-}
-.store-name strong {
-  font-size: 12px;
-  color: #eef4f6;
-  display: block;
-  max-width: 140px;
+.brand-mark {
+  flex-shrink: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.store-name small {
-  font-size: 10px;
-  color: #a9bec9;
+.brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
 }
 .sidebar nav {
   overflow: auto;
@@ -817,6 +796,30 @@ td input {
 .row-actions button {
   border: 1px solid #e4ebef;
 }
+.settlement-action {
+  display: flex;
+  justify-content: flex-start;
+}
+.settlement-bills .table-scroll th:last-child,
+.settlement-bills .settlement-actions {
+  position: sticky;
+  right: 0;
+  background: #fff;
+  box-shadow: -1px 0 0 #e1e8ed;
+}
+.settlement-bills .table-scroll th:last-child {
+  background: #f8fafb;
+}
+.settlement-action button {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.settlement-bills td:nth-child(3),
+.settlement-bills td:nth-child(4),
+.settlement-bills td:nth-child(5) {
+  font-variant-numeric: tabular-nums;
+}
 .low-stock {
   color: #b18a4d;
   font-weight: 600;
@@ -915,6 +918,29 @@ td input {
 }
 .qty-input {
   width: 90px;
+}
+.line-remove {
+  margin-top: 8px;
+  padding: 4px 8px;
+  min-height: 30px;
+  font-size: 11px;
+  color: #b42318;
+  border-color: #f0cbc7;
+}
+.line-remove:hover {
+  background: #fff5f4;
+  border-color: #b42318;
+}
+.qty-input[aria-invalid="true"] {
+  border-color: #b42318;
+  background: #fff5f4;
+}
+.table-scroll td .stock-error {
+  display: block;
+  color: #b42318;
+  max-width: 190px;
+  margin-top: 6px;
+  white-space: normal;
 }
 .price-input {
   width: 125px;
@@ -1285,7 +1311,7 @@ td input {
   border: 1px solid #000;
   box-shadow: 0 3px 20px #28445420;
   font-family: Arial, sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
@@ -1296,11 +1322,10 @@ td input {
   grid-template-columns: 52.8% 47.2%;
 }
 .invoice-brand {
-  height: 23mm;
+  height: 22.4mm;
   border-bottom: 1px solid #000;
 }
 .invoice-brand > div:first-child {
-  border-right: 1px solid #000;
   padding: 3mm;
   display: flex;
   align-items: center;
@@ -1310,21 +1335,14 @@ td input {
 }
 .invoice-brand img {
   display: block;
+  width: 57mm;
+  max-width: 100%;
+  height: 16.2mm;
   object-fit: contain;
-  max-width: 58mm;
-  max-height: 17mm;
-}
-.invoice-brand-space {
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(6mm - 1px),
-    #d1d1d1 calc(6mm - 1px),
-    #d1d1d1 6mm
-  );
+  object-position: left center;
 }
 .invoice-title {
-  height: 14mm;
+  min-height: 14.5mm;
   border-bottom: 1px solid #000;
 }
 .invoice-title h1 {
@@ -1334,7 +1352,7 @@ td input {
   justify-content: center;
   border-right: 1px solid #000;
   font-family: Arial, sans-serif;
-  font-size: 30px;
+  font-size: 34px;
   letter-spacing: 0;
   color: #000;
   font-weight: bold;
@@ -1346,25 +1364,19 @@ td input {
   padding: 2mm;
 }
 .invoice-partner-logo img {
-  max-width: 53mm;
-  max-height: 10mm;
+  width: 47mm;
+  max-width: 100%;
+  height: 9.5mm;
   object-fit: contain;
 }
 .invoice-meta {
-  min-height: 35mm;
+  min-height: 35.8mm;
   border-bottom: 1px solid #000;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(6mm - 1px),
-    #d1d1d1 calc(6mm - 1px),
-    #d1d1d1 6mm
-  );
 }
 .invoice-meta > section {
   padding: 0 3px;
   white-space: pre-wrap;
-  line-height: 6mm;
+  line-height: 5.9mm;
   min-width: 0;
 }
 .invoice-meta > section:first-child {
@@ -1380,7 +1392,7 @@ td input {
 .invoice-meta p {
   margin: 0;
   line-height: 1.55;
-  min-height: 6mm;
+  min-height: 5.9mm;
 }
 .invoice-account {
   border-bottom: 1px solid #000;
@@ -1392,8 +1404,8 @@ td input {
 .invoice-account > p {
   display: block;
   margin: 0;
-  min-height: 5.6mm;
-  border-bottom: 1px solid #d1d1d1;
+  min-height: 5.8mm;
+  border-bottom: 0;
   padding: 2px 3px;
 }
 .invoice-account > p:last-child {
@@ -1403,7 +1415,7 @@ td input {
   width: 100%;
   table-layout: fixed;
   font-family: Arial, sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: #000;
   margin: 0;
   border-collapse: collapse;
@@ -1412,26 +1424,27 @@ td input {
 .invoice .invoice-table td {
   border: 1px solid #000;
   padding: 2px 4px;
-  font-size: 11px;
+  font-size: 13px;
   color: #000;
   white-space: normal;
   vertical-align: middle;
   line-height: 1.2;
-  height: 6mm;
+  height: 5.8mm;
   font-weight: normal;
   background: #fff;
 }
 .invoice .invoice-table th {
   font-weight: bold;
   text-align: center;
-  height: 6mm;
+  height: 5.8mm;
 }
 .invoice .invoice-table td:first-child,
 .invoice .invoice-table td:nth-child(4) {
   text-align: center;
 }
 .invoice .invoice-table .serial-cell {
-  font-size: 9px;
+  font-size: 10.5px;
+  line-height: 1.1;
   text-align: center;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1441,7 +1454,7 @@ td input {
 }
 .invoice-product-discount {
   display: block;
-  font-size: 9px;
+  font-size: 10.5px;
   margin-top: 2px;
   color: #333;
 }
@@ -1463,7 +1476,7 @@ td input {
   font-weight: bold;
 }
 .invoice .invoice-table tfoot td {
-  height: 5mm;
+  height: 5.8mm;
 }
 .invoice-money {
   display: flex;
@@ -1480,26 +1493,29 @@ td input {
   background: #fff;
 }
 .invoice-terms {
-  min-height: 5.5mm;
+  min-height: 4.9mm;
   border-bottom: 1px solid #000;
-  padding: 2px 3px;
-  font-size: 10px;
-  line-height: 1.3;
+  padding: 1px 3px;
+  font-size: 12px;
+  line-height: 1.25;
   white-space: pre-wrap;
 }
 .invoice-warranty {
-  min-height: 51mm;
-  padding: 4mm 3px 3mm;
+  min-height: 51.7mm;
+  padding: 4.5mm 3px 3mm;
   border-bottom: 1px solid #000;
-  font-size: 10.3px;
-  line-height: 1.3;
+  font-size: 12px;
+  line-height: 1.25;
 }
 .invoice-warranty > b {
-  font-size: 11px;
+  font-size: 13px;
 }
 .warranty-text {
   margin-top: 2px;
   white-space: pre-wrap;
+}
+.warranty-void {
+  color: #d00000;
 }
 .invoice-footer {
   position: relative;
@@ -1509,10 +1525,10 @@ td input {
   break-inside: avoid;
 }
 .invoice-bank {
-  min-height: 29mm;
+  min-height: 30mm;
   padding: 3mm 3px 2mm;
   border-bottom: 1px solid #000;
-  font-size: 10.5px;
+  font-size: 11.8px;
   line-height: 1.25;
   white-space: pre-wrap;
 }
@@ -1525,20 +1541,28 @@ td input {
   padding: 2px 3px;
   display: flex;
   align-items: flex-end;
-  font-size: 10.5px;
+  font-size: 11.8px;
+}
+.invoice-signature p {
+  margin: 0;
 }
 .copy-stamp {
   position: absolute;
-  right: 32mm;
-  bottom: 10mm;
-  padding: 9px 15px;
-  border: 3px solid #b45757b8;
+  right: 34mm;
+  bottom: 15mm;
+  width: 67mm;
+  height: 35mm;
+  border: 2.5px solid #b45858;
   color: white;
-  -webkit-text-stroke: 1.4px #b45757d9;
-  font-size: 72px;
-  line-height: 1.05;
+  -webkit-text-stroke: 1.4px #b45858;
+  font-family: Arial, sans-serif;
+  font-size: 79px;
+  line-height: 1;
   font-weight: 500;
-  transform: rotate(-23deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-24.5deg);
   background: transparent;
   pointer-events: none;
   letter-spacing: 1px;
@@ -1844,7 +1868,8 @@ td input {
   }
   .invoice {
     box-shadow: none;
-    width: auto;
+    width: 190mm;
+    max-width: 100%;
     min-height: 255mm;
     padding: 0;
     break-after: page;
@@ -1872,10 +1897,6 @@ td input {
   }
   table {
     width: 100%;
-  }
-  .copy-stamp {
-    bottom: 10mm;
-    right: 32mm;
   }
   button {
     display: none !important;
@@ -2021,8 +2042,238 @@ select {
 }
 @media print {
   .invoice {
-    width: 189mm;
+    width: 190mm;
     max-width: 100%;
     min-height: 255mm;
+  }
+}
+
+.import-body {
+  padding: 0 1.5rem 1.5rem;
+}
+.import-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+.import-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid var(--border, #dbe4e9);
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+}
+.import-mode.selected {
+  border-color: #328c83;
+  background: #eef8f5;
+}
+.import-mode input {
+  width: auto;
+  margin-top: 0.25rem;
+  flex: 0 0 auto;
+}
+.import-mode strong,
+.import-mode small {
+  display: block;
+}
+.import-mode small {
+  color: #586f7b;
+  margin-top: 0.35rem;
+  line-height: 1.5;
+}
+.import-preview {
+  margin-top: 1.25rem;
+  border-top: 1px solid #dbe4e9;
+  padding-top: 1rem;
+}
+.import-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin: 1rem 0;
+}
+.import-counts span {
+  display: flex;
+  gap: 0.4rem;
+  color: #586f7b;
+}
+.import-counts strong {
+  color: #203c4d;
+}
+.import-error {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #e9b8b5;
+  background: #fff3f2;
+  border-radius: 10px;
+  color: #9d3531;
+}
+.import-error pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 0.85rem;
+}
+.import-confirm {
+  margin-top: 1rem;
+  align-items: flex-start;
+}
+@media (max-width: 650px) {
+  .import-modes {
+    grid-template-columns: 1fr;
+  }
+  .import-body {
+    padding: 0 1rem 1rem;
+  }
+}
+
+.print-toolbar {
+  flex-wrap: wrap;
+}
+.print-toolbar .actions {
+  flex-wrap: wrap;
+}
+.invoice-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #607988;
+}
+.invoice-source select {
+  font-size: 12px;
+  min-width: 180px;
+}
+
+/* Compact settings controls and aligned invoice branding. */
+.field-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+}
+.field-heading > label {
+  font-weight: 550;
+  color: #536f7e;
+}
+.field-action {
+  padding: 2px 0;
+  min-height: 24px;
+  border: 0;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #39766e;
+  background: transparent;
+  white-space: nowrap;
+}
+.field-action:hover {
+  background: transparent;
+  color: #195d54;
+}
+.settings-profile-grid {
+  align-items: start;
+}
+.settings-profile-grid .field > label {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+.settings-section {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #e6edf0;
+}
+.settings-section-heading {
+  margin-bottom: 16px;
+}
+.settings-section-heading h4 {
+  font-size: 13px;
+  font-weight: 650;
+  color: #304b5b;
+  margin: 0;
+}
+.settings-section-heading p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: #8196a4;
+  line-height: 1.5;
+}
+.settings-logo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.settings-logo-preview {
+  height: 92px;
+  padding: 16px;
+  border: 1px solid #e3eaee;
+  border-radius: 7px;
+  background: #f7f9fa;
+  justify-content: center;
+}
+.settings-logo-preview img {
+  max-width: min(100%, 180px);
+  max-height: 54px;
+  height: auto;
+}
+.settings-logo-preview > span {
+  font-size: 11px;
+  font-weight: 400;
+  color: #8a9ba6;
+}
+.settings-logo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.settings-logo-actions button {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.settings-logo-actions .logo-remove {
+  border-color: transparent;
+  background: transparent;
+  color: #7c909d;
+}
+.settings-logo-actions .logo-remove:hover {
+  color: #b24f4a;
+  background: #fff4f3;
+}
+.settings-help {
+  font-size: 10px;
+  color: #8a9ba6;
+  margin: 12px 0 0;
+}
+.settings-invoice-terms > .field + .field {
+  margin-top: 20px;
+}
+.settings-actions {
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 20px;
+  border-top: 1px solid #e6edf0;
+}
+@media (max-width: 650px) {
+  .settings-logo-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .field-heading {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+  .settings-actions > button {
+    flex: 1 1 100%;
   }
 }

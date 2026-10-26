@@ -17,7 +17,7 @@ import {
   stock,
   isOrder,
   orderRemaining,
-  inventoryCapital,
+  totalCapital,
 } from "./domain";
 import { Empty, Table } from "./ui";
 export function Dashboard({
@@ -128,10 +128,10 @@ export function Dashboard({
           },
           {
             label: "Total modal",
-            value: money(inventoryCapital(db)),
-            note: "Nilai stok saat ini · berdasarkan HPP",
+            value: money(totalCapital(db)),
+            note: "Stok awal + pembelian bersih · semua waktu",
             icon: PackageOpen,
-            page: "items",
+            page: "purchase",
           },
           {
             label: "Jumlah transaksi",
@@ -280,7 +280,7 @@ export function Dashboard({
           {top.length ? (
             <div className="ranking">
               {top.map((p, i) => (
-                <div key={p.name}>
+                <div key={`${p.name}-${i}`}>
                   <span>{i + 1}</span>
                   <strong>{p.name}</strong>
                   <b>{money(p.total)}</b>

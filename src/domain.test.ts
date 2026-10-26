@@ -15,8 +15,11 @@ import {
   saveItem,
   saveParty,
   stock,
+  saleStockLimit,
   metrics,
   savePayment,
+  settleInvoice,
+  paid,
   due,
   balance,
   cancelDoc,
@@ -28,6 +31,7 @@ import {
   lineDiscount,
   lineNet,
   inventoryCapital,
+  totalCapital,
   singleSupplier,
   withStoreDefaults,
 } from "./domain";
@@ -525,5 +529,213 @@ describe("integritas transaksi", () => {
     const dup = structuredClone(db);
     dup.items.push({ ...dup.items[0] });
     expect(() => validateDB(dup)).toThrow("ID ganda");
+  });
+});
+
+describe("batas stok pada form penjualan", () => {
+  it("memakai stok saat ini untuk penjualan baru/draf dan mengembalikan qty nota yang sedang diedit", () => {
+    const { db, item, c } = setup();
+    const sale = doc(db, "sale", item.id, c.id, 10);
+    expect(stock(db, item.id).qty).toBe(0);
+    expect(saleStockLimit(db, newDoc(db, "sale"), item.id)).toBe(0);
+    expect(saleStockLimit(db, sale, item.id)).toBe(10);
+    expect(
+      saleStockLimit(db, { ...sale, notes: "Edit catatan" }, item.id),
+    ).toBe(10);
+  });
+  it("menyisakan stok untuk penjualan sesudahnya, tanpa menghitung draf dan nota batal", () => {
+    const { db, item, c } = setup();
+    const first = doc(db, "sale", item.id, c.id, 3);
+    doc(db, "sale", item.id, c.id, 5);
+    const cancelled = doc(db, "sale", item.id, c.id, 1);
+    cancelDoc(db, cancelled.id, "Salah input");
+    const draft = newDoc(db, "sale");
+    draft.partyId = c.id;
+    saveDoc(
+      db,
+      draft,
+      [{ ...newLine(db, draft.id, item.id, "sale"), qty: 20 }],
+      false,
+    );
+    expect(saleStockLimit(db, first, item.id)).toBe(5);
+    expect(saleStockLimit(db, draft, item.id)).toBe(2);
+  });
+  it("pembelian belakangan tidak membiayai penjualan lama; tanggal edit mengikuti urutan replay", () => {
+    const { db, item, c, s } = setup();
+    const first = doc(db, "sale", item.id, c.id, 10);
+    first.date = "2020-01-01";
+    const purchase = doc(db, "purchase", item.id, s.id, 10);
+    purchase.date = "2020-01-02";
+    expect(saleStockLimit(db, first, item.id)).toBe(10);
+    expect(saleStockLimit(db, { ...first, date: "2020-01-03" }, item.id)).toBe(
+      20,
+    );
+  });
+  it("retur setelah penjualan bukan stok yang tersedia sebelum penjualan itu", () => {
+    const { db, item, c } = setup();
+    const first = doc(db, "sale", item.id, c.id, 10);
+    ret(db, first.id, 3);
+    expect(stock(db, item.id).qty).toBe(3);
+    expect(saleStockLimit(db, first, item.id)).toBe(10);
+  });
+  it("menjaga presisi qty pecahan sampai tiga desimal", () => {
+    const { db, item, c } = setup();
+    saveItem(db, { ...item, openingQty: 0.3, openingCost: 30 });
+    const first = doc(db, "sale", item.id, c.id, 0.1);
+    doc(db, "sale", item.id, c.id, 0.2);
+    expect(saleStockLimit(db, first, item.id)).toBe(0.1);
+    expect(saleStockLimit(db, newDoc(db, "sale"), item.id)).toBe(0);
+  });
+});
+
+describe("pelunasan otomatis per nota", () => {
+  it("mencatat hanya sisa tagihan dan mempertahankan uang muka serta stok", () => {
+    const { db, item, c } = setup();
+    const sale = newDoc(db, "sale");
+    sale.partyId = c.id;
+    sale.downPayment = 200;
+    saveDoc(
+      db,
+      sale,
+      [{ ...newLine(db, sale.id, item.id, "sale"), qty: 5 }],
+      true,
+    );
+    const originalPayment = structuredClone(db.payments[0]);
+    const beforeStock = stock(db, item.id);
+    settleInvoice(db, sale.id);
+    expect(db.payments).toHaveLength(2);
+    expect(db.payments[0]).toEqual(originalPayment);
+    expect(db.payments[1]).toMatchObject({
+      amount: 800,
+      direction: "in",
+      sourceDocId: "",
+    });
+    expect(
+      db.allocations.filter((a) => a.docId === sale.id).map((a) => a.amount),
+    ).toEqual([200, 800]);
+    expect(paid(db, sale.id)).toBe(1000);
+    expect(due(db, sale.id)).toBe(0);
+    expect(balance(db, c.id)).toBe(0);
+    expect(stock(db, item.id)).toEqual(beforeStock);
+    expect(db.documents.find((d) => d.id === sale.id)?.downPayment).toBe(200);
+    const saved = structuredClone(db);
+    expect(() => settleInvoice(db, sale.id)).toThrow("sudah lunas");
+    expect(db).toEqual(saved);
+    validateDB(db);
+  });
+  it("mengurangi retur dan pembayaran parsial, tanpa melunasi nota lain milik customer sama", () => {
+    const { db, item, c } = setup();
+    const first = doc(db, "sale", item.id, c.id, 5);
+    const second = doc(db, "sale", item.id, c.id, 2);
+    ret(db, first.id, 1);
+    payment(db, c.id, first.id, 300);
+    settleInvoice(db, first.id);
+    expect(db.payments.at(-1)?.amount).toBe(500);
+    expect(due(db, first.id)).toBe(0);
+    expect(due(db, second.id)).toBe(400);
+    expect(balance(db, c.id)).toBe(400);
+    validateDB(db);
+  });
+  it("pembelian tanpa pembayaran sebelumnya tetap bisa dilunasi dengan pembayaran keluar", () => {
+    const { db, item, s } = setup();
+    const purchase = doc(db, "purchase", item.id, s.id, 5);
+    settleInvoice(db, purchase.id);
+    expect(db.payments[0]).toMatchObject({
+      partyId: s.id,
+      amount: 500,
+      direction: "out",
+    });
+    expect(due(db, purchase.id)).toBe(0);
+    expect(balance(db, s.id)).toBe(0);
+    validateDB(db);
+  });
+  it("pembayaran batal tidak dihitung dan pelunasan baru mengikuti sisa terbaru", () => {
+    const { db, item, c } = setup();
+    const sale = doc(db, "sale", item.id, c.id, 3);
+    settleInvoice(db, sale.id);
+    cancelPayment(db, db.payments[0].id, "Salah catat");
+    expect(due(db, sale.id)).toBe(600);
+    settleInvoice(db, sale.id);
+    expect(db.payments).toHaveLength(2);
+    expect(paid(db, sale.id)).toBe(600);
+    expect(due(db, sale.id)).toBe(0);
+    validateDB(db);
+  });
+  it("menolak order, draf, nota batal, tagihan kredit, dan ID yang hilang tanpa mutasi", () => {
+    const { db, item, c } = setup();
+    const order = doc(db, "customer_order", item.id, c.id);
+    const sale = doc(db, "sale", item.id, c.id);
+    payment(db, c.id, sale.id, 200);
+    ret(db, sale.id, 1);
+    const cancelled = doc(db, "sale", item.id, c.id);
+    cancelDoc(db, cancelled.id, "Salah nota");
+    const draft = newDoc(db, "sale");
+    draft.partyId = c.id;
+    saveDoc(db, draft, [newLine(db, draft.id, item.id, "sale")], false);
+    for (const id of [order.id, sale.id, cancelled.id, draft.id, "missing"]) {
+      const before = structuredClone(db);
+      expect(() => settleInvoice(db, id)).toThrow();
+      expect(db).toEqual(before);
+    }
+  });
+});
+
+describe("total modal seluruh pembelian", () => {
+  it("menjumlahkan nilai stok awal dan pembelian bersih; penjualan dan retur penjualan tidak menguranginya", () => {
+    const { db, item, c, s } = setup();
+    const purchase = newDoc(db, "purchase");
+    purchase.partyId = s.id;
+    saveDoc(
+      db,
+      purchase,
+      [
+        {
+          ...newLine(db, purchase.id, item.id, "purchase"),
+          qty: 10,
+          price: 200,
+          discountType: "percent",
+          discountValue: 10,
+        },
+      ],
+      true,
+    );
+    expect(totalCapital(db)).toBe(2800);
+    const sale = doc(db, "sale", item.id, c.id, 3);
+    expect(totalCapital(db)).toBe(2800);
+    expect(inventoryCapital(db)).toBe(2380);
+    ret(db, sale.id, 1);
+    expect(totalCapital(db)).toBe(2800);
+    ret(db, purchase.id, 2);
+    expect(totalCapital(db)).toBe(2440);
+    db.items[0].active = false;
+    expect(totalCapital(db)).toBe(2440);
+    validateDB(db);
+  });
+  it("mengabaikan order, draf, dan pembelian batal, lalu menghitung kembali retur yang dibatalkan", () => {
+    const { db, item, s } = setup();
+    doc(db, "supplier_order", item.id, s.id, 5);
+    const draft = newDoc(db, "purchase");
+    draft.partyId = s.id;
+    saveDoc(
+      db,
+      draft,
+      [{ ...newLine(db, draft.id, item.id, "purchase"), qty: 5 }],
+      false,
+    );
+    const cancelled = doc(db, "purchase", item.id, s.id, 2);
+    cancelDoc(db, cancelled.id, "Salah pembelian");
+    expect(totalCapital(db)).toBe(1000);
+    const purchase = doc(db, "purchase", item.id, s.id, 5);
+    const back = ret(db, purchase.id, 1);
+    expect(totalCapital(db)).toBe(1400);
+    cancelDoc(db, back.id, "Salah retur");
+    expect(totalCapital(db)).toBe(1500);
+    expect(totalCapital(emptyDB())).toBe(0);
+    validateDB(db);
+  });
+  it("harga beli default saja tidak dianggap modal pembelian yang sudah dikeluarkan", () => {
+    const { db, item } = setup();
+    saveItem(db, { ...item, openingCost: 0, buyPrice: 50000 });
+    expect(totalCapital(db)).toBe(0);
   });
 });

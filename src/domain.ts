@@ -1,4 +1,9 @@
 import {
+  invoiceDefaults,
+  isMitraIdentity,
+  invoiceProfile,
+} from "./invoiceDefaults";
+import {
   type DB,
   type Doc,
   type Kind,
@@ -10,6 +15,7 @@ import {
   today,
   emptyDB,
 } from "./types";
+import { defaultLogo } from "./branding";
 function check(ok: unknown, message: string): asserts ok {
   if (!ok) throw new Error(message);
 }
@@ -72,8 +78,86 @@ export function singleSupplier(db: DB): Party {
 }
 export function withStoreDefaults(db: DB): DB {
   const supplier = singleSupplier(db);
+  const settings = db.settings.map((original) => {
+    const s =
+      original.brandingVersion === 1
+        ? { ...original }
+        : {
+            ...original,
+            logo: original.logo || defaultLogo,
+            brandingVersion: 1,
+          };
+    if (s.invoiceDefaultsVersion !== 1 && isMitraIdentity(s.name)) {
+      for (const key of Object.keys(
+        invoiceDefaults,
+      ) as (keyof typeof invoiceDefaults)[]) {
+        if (
+          key !== "name" &&
+          (!s[key] ||
+            (key === "terms" && s[key] === "Pembayaran sesuai kesepakatan."))
+        )
+          s[key] = invoiceDefaults[key];
+      }
+    }
+    // Text defaults apply to every store identity, once. Never copy bank/account details.
+    if (s.invoiceTextDefaultsVersion !== 1) {
+      for (const key of ["warranty", "terms", "country"] as const) {
+        if (!s[key]?.trim()) s[key] = invoiceDefaults[key];
+      }
+      if (!s.signature?.trim()) s.signature = s.invoiceIssuer || s.name;
+    }
+    return {
+      ...s,
+      invoiceIssuer:
+        s.invoiceIssuer ??
+        (isMitraIdentity(s.name) ? invoiceDefaults.name : s.name),
+      invoiceDefaultsVersion: 1,
+      invoiceTextDefaultsVersion: 1,
+    };
+  });
+  const profile = settings[0];
+  const documents = db.documents.map((original) => {
+    if (original.invoiceDefaultsVersion === 1) return original;
+    const doc = { ...original, invoiceDefaultsVersion: 1 };
+    if (!isMitraIdentity(doc.issuerName)) return doc;
+    const source = isMitraIdentity(profile.name)
+      ? profile
+      : { ...invoiceDefaults, invoiceIssuer: invoiceDefaults.name };
+    if (["Mitra Ecobike", "Toko Offline"].includes(doc.issuerName))
+      doc.issuerName = source.invoiceIssuer || source.name;
+    const fields = {
+      issuerName: "name",
+      issuerAddress: "address",
+      issuerPhone: "phone",
+      bank: "bank",
+      beneficiary: "beneficiary",
+      account: "account",
+      bankBranch: "bankBranch",
+      bankCode: "bankCode",
+      country: "country",
+      warranty: "warranty",
+      terms: "terms",
+      signature: "signature",
+      logo: "logo",
+      partnerLogo: "partnerLogo",
+    } as const;
+    for (const key of Object.keys(fields) as (keyof typeof fields)[]) {
+      if (
+        !doc[key] ||
+        (key === "terms" && doc[key] === "Pembayaran sesuai kesepakatan.")
+      )
+        doc[key] = source[fields[key]];
+    }
+    return doc;
+  });
   return {
     ...withLineDiscountDefaults(db),
+    settings,
+    documents,
+    payments: db.payments.map((p) => ({
+      ...p,
+      sourceDocId: p.sourceDocId || "",
+    })),
     parties: db.parties.some((p) => p.id === supplier.id)
       ? db.parties.map((p) =>
           p.id === supplier.id ? { ...p, active: true } : p,
@@ -122,6 +206,47 @@ export function stock(db: DB, itemId: string, until = "9999-12-31") {
 }
 export const inventoryCapital = (db: DB) =>
   db.items.reduce((total, item) => total + stock(db, item.id).value, 0);
+export const totalCapital = (db: DB) =>
+  db.items.reduce((total, item) => total + item.openingCost, 0) +
+  activeDocs(db).reduce(
+    (total, doc) =>
+      total +
+      (doc.kind === "purchase"
+        ? doc.total
+        : doc.kind === "purchase_return"
+          ? -doc.total
+          : 0),
+    0,
+  );
+export function saleStockLimit(db: DB, doc: Doc, itemId: string) {
+  const original = db.documents.find(
+    (d) => d.id === doc.id && d.kind === "sale" && d.status === "final",
+  );
+  if (!original) return Math.max(0, stock(db, itemId).qty);
+
+  // Match revision replay: remove the original sale, then reserve enough stock
+  // at its edited date and every later movement. Later receipts cannot fund it.
+  const ordered = [
+    ...activeDocs(db).filter((d) => d.id !== doc.id && !isOrder(d.kind)),
+    { ...doc, seq: original.seq },
+  ].sort((a, b) => a.date.localeCompare(b.date) || a.seq - b.seq);
+  let available = db.items.find((i) => i.id === itemId)?.openingQty ?? 0;
+  let limit = Infinity;
+  let afterSale = false;
+  for (const movement of ordered) {
+    if (movement.id === doc.id) {
+      afterSale = true;
+    } else {
+      const sign = ["purchase", "sale_return"].includes(movement.kind) ? 1 : -1;
+      for (const line of linesOf(db, movement.id)) {
+        if (line.itemId === itemId)
+          available = roundQ(available + sign * line.qty);
+      }
+    }
+    if (afterSale) limit = Math.min(limit, available);
+  }
+  return Math.max(0, roundQ(limit));
+}
 export function returned(db: DB, lineId: string, exclude = "") {
   return db.lines
     .filter(
@@ -216,20 +341,7 @@ export function newDoc(db: DB, kind: Kind): Doc {
     downPayment: 0,
     total: 0,
     notes: "",
-    terms: s.terms,
-    issuerName: s.name,
-    issuerAddress: s.address,
-    issuerPhone: s.phone,
-    bank: s.bank,
-    beneficiary: s.beneficiary,
-    account: s.account,
-    bankBranch: s.bankBranch,
-    bankCode: s.bankCode,
-    country: s.country,
-    warranty: s.warranty,
-    signature: s.signature,
-    logo: s.logo,
-    partnerLogo: s.partnerLogo,
+    ...invoiceProfile(s),
     createdAt: new Date().toISOString(),
     cancelReason: "",
   };
@@ -532,6 +644,7 @@ export function saveDoc(
         amount: doc.downPayment,
         direction: "in",
         notes: `Uang muka ${doc.number}`,
+        sourceDocId: doc.id,
         status: "final",
       },
       [{ docId: doc.id, amount: doc.downPayment }],
@@ -575,7 +688,7 @@ export function savePayment(
   input: Payment,
   allocations: { docId: string; amount: number }[],
 ) {
-  const p = { ...input };
+  const p = { ...input, sourceDocId: input.sourceDocId || "" };
   const party = db.parties.find((x) => x.id === p.partyId);
   check(party?.active, "Pilih customer/pemasok aktif.");
   check(
@@ -637,6 +750,29 @@ export function savePayment(
   for (const a of allocations.filter((a) => a.amount > 0))
     db.allocations.push({ id: uid(), paymentId: p.id, ...a });
   audit(db, "Catat pembayaran", p.number, String(p.amount));
+}
+export function settleInvoice(db: DB, docId: string) {
+  const doc = db.documents.find((d) => d.id === docId);
+  check(
+    doc?.status === "final" && ["sale", "purchase"].includes(doc.kind),
+    "Pilih tagihan penjualan atau pembelian yang aktif.",
+  );
+  const remaining = due(db, doc.id);
+  check(remaining > 0, "Tagihan sudah lunas atau memiliki saldo kredit.");
+  savePayment(
+    db,
+    {
+      id: uid(),
+      number: nextNumber(db, "payment"),
+      date: today(),
+      partyId: doc.partyId,
+      direction: doc.kind === "sale" ? "in" : "out",
+      amount: remaining,
+      notes: `Pelunasan ${doc.number}`,
+      status: "final",
+    },
+    [{ docId: doc.id, amount: remaining }],
+  );
 }
 export function cancelPayment(db: DB, id: string, reason: string) {
   const p = db.payments.find((p) => p.id === id);
@@ -781,4 +917,16 @@ export function metrics(db: DB, from: string, to: string) {
       )
       .reduce((s, p) => s + p.amount, 0),
   };
+}
+
+export function refreshInvoiceProfile(db: DB, docId: string) {
+  const doc = db.documents.find((d) => d.id === docId);
+  check(doc, "Dokumen tidak ditemukan.");
+  Object.assign(doc, invoiceProfile(db.settings[0]));
+  audit(
+    db,
+    "Perbarui profil invoice",
+    doc.number,
+    "Logo, penerbit, rekening, garansi, dan syarat diperbarui dari Pengaturan.",
+  );
 }

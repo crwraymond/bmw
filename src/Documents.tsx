@@ -1,7 +1,10 @@
+import { ImportCSV } from "./ImportCSV";
+import { exportData } from "./dataImport";
 import { NumberInput, SearchSelect } from "./inputs";
 import { SerialInputs } from "./SerialInputs";
 import { serialText } from "./serials";
-import { useState, useEffect, useRef } from "react";
+import { reviseDocument } from "./revisions";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, Trash2, Eye, Pencil } from "lucide-react";
 import {
   type DB,
@@ -24,6 +27,7 @@ import {
   isReturn,
   partyKind,
   stock,
+  saleStockLimit,
   due,
   paid,
   orderRemaining,
@@ -72,14 +76,16 @@ export function DocumentList({
       <Toolbar
         search={search}
         setSearch={setSearch}
-        onExport={() =>
-          exportCSV(
-            `${kind}.csv`,
-            ["Nomor", "Tanggal", "Pihak", "Total", "Status"],
-            docs.map((d) => [d.number, d.date, d.partyName, d.total, d.status]),
-          )
-        }
+        onExport={() => {
+          const data = exportData(
+            db,
+            kind,
+            docs.map((d) => d.id),
+          );
+          exportCSV(`${kind}.csv`, data.headers, data.rows);
+        }}
       >
+        <ImportCSV db={db} target={kind} commit={commit} busy={busy} />
         <select
           aria-label="Status dokumen"
           value={state}
@@ -132,9 +138,13 @@ export function DocumentList({
                     <button title="Lihat detail" onClick={() => onView(d)}>
                       <Eye size={16} />
                     </button>
-                    {d.status === "draft" && (
+                    {d.status !== "cancelled" && (
                       <button
-                        title="Lanjutkan draf"
+                        title={
+                          d.status === "draft"
+                            ? "Lanjutkan draf"
+                            : "Edit dokumen"
+                        }
                         onClick={() => setEdit({ ...d })}
                       >
                         <Pencil size={16} />
@@ -215,8 +225,20 @@ export function Editor({
   const [item, setItem] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const isRet = isReturn(doc.kind);
+  const stockLimits = useMemo(
+    () =>
+      new Map(
+        doc.kind === "sale"
+          ? db.items.map((i) => [i.id, saleStockLimit(db, doc, i.id)])
+          : [],
+      ),
+    [db, doc],
+  );
+  const exceedsStock = (line: Line) =>
+    doc.kind === "sale" && line.qty > (stockLimits.get(line.itemId) ?? 0);
+  const hasStockError = lines.some(exceedsStock);
   const parties = db.parties.filter(
-    (p) => p.kind === partyKind(doc.kind) && p.active,
+    (p) => p.kind === partyKind(doc.kind) && (p.active || p.id === doc.partyId),
   );
   const parent = db.documents.find((d) => d.id === doc.refId);
   const patch = (i: number, key: keyof Line, value: string | number) =>
@@ -227,13 +249,14 @@ export function Editor({
     setLines(
       p
         ? linesOf(db, p.id)
-            .filter((l) => l.qty - returned(db, l.id) > 0)
+            .filter((l) => l.qty - returned(db, l.id, doc.id) > 0)
             .map((l) => ({
               ...l,
               id: uid(),
               docId: doc.id,
               refLineId: l.id,
-              qty: Math.round((l.qty - returned(db, l.id)) * 1000) / 1000,
+              qty:
+                Math.round((l.qty - returned(db, l.id, doc.id)) * 1000) / 1000,
             }))
         : [],
     );
@@ -254,12 +277,28 @@ export function Editor({
     db.items.find((i) => i.id === item) ||
     exact ||
     (itemSearch.trim() && matches.length === 1 ? matches[0] : undefined);
+  const candidateLimit = candidate ? (stockLimits.get(candidate.id) ?? 0) : 0;
+  const candidateLine = lines.find((l) => l.itemId === candidate?.id);
+  const candidateQty = candidateLine
+    ? Math.round((candidateLine.qty + 1) * 1000) / 1000
+    : doc.kind === "sale"
+      ? Math.min(1, candidateLimit)
+      : 1;
+  const cannotAdd =
+    doc.kind === "sale" &&
+    (candidateLimit <= 0 || candidateQty > candidateLimit);
   const addItem = () => {
     if (!candidate) {
       setItemMessage(
         matches.length > 1
           ? "Ada beberapa barang yang cocok. Pilih barang yang dimaksud."
           : "Kode barang tidak ditemukan. Tambahkan barang di menu Barang & stok terlebih dahulu.",
+      );
+      return;
+    }
+    if (cannotAdd) {
+      setItemMessage(
+        `Stok tidak cukup untuk menambah ${candidate.name}. Batas qty penjualan ${qty(stockLimits.get(candidate.id) ?? 0)} ${candidate.unit}.`,
       );
       return;
     }
@@ -271,7 +310,13 @@ export function Editor({
               ? { ...l, qty: Math.round((l.qty + 1) * 1000) / 1000 }
               : l,
           )
-        : [...current, newLine(db, doc.id, candidate.id, doc.kind)];
+        : [
+            ...current,
+            {
+              ...newLine(db, doc.id, candidate.id, doc.kind),
+              qty: candidateQty,
+            },
+          ];
     });
     setItem("");
     setItemSearch("");
@@ -292,16 +337,33 @@ export function Editor({
   const productDiscount = lines.reduce((s, l) => s + lineDiscount(l), 0);
   const subtotal = lines.reduce((s, l) => s + previewTotal(l), 0);
   const save = async (final: boolean) => {
+    if (hasStockError) return;
+    if (!formRef.current?.reportValidity()) return;
     if (
       await commit(
-        (d) => saveDoc(d, doc, lines, final),
-        final ? "Dokumen disahkan" : "Draf tersimpan",
+        (d) =>
+          initial.status === "final"
+            ? reviseDocument(d, doc, lines)
+            : saveDoc(d, doc, lines, final),
+        initial.status === "final"
+          ? "Perubahan dokumen tersimpan"
+          : final
+            ? "Dokumen disahkan"
+            : "Draf tersimpan",
       )
     )
       onClose();
   };
   return (
-    <Modal title={`${labels[doc.kind]} baru`} onClose={onClose} wide>
+    <Modal
+      title={
+        initial.status === "final"
+          ? `Edit ${labels[doc.kind].toLowerCase()}`
+          : `${labels[doc.kind]} baru`
+      }
+      onClose={onClose}
+      wide
+    >
       <form
         ref={formRef}
         onSubmit={(e) => {
@@ -383,7 +445,10 @@ export function Editor({
                             0,
                             l.qty -
                               activeDocs(db)
-                                .filter((d) => d.orderId === order.id)
+                                .filter(
+                                  (d) =>
+                                    d.orderId === order.id && d.id !== doc.id,
+                                )
                                 .flatMap((d) => linesOf(db, d.id))
                                 .filter((x) => x.itemId === l.itemId)
                                 .reduce((s, x) => s + x.qty, 0),
@@ -405,7 +470,7 @@ export function Editor({
                           ? "customer_order"
                           : "supplier_order") &&
                       d.partyId === doc.partyId &&
-                      orderRemaining(db, d) > 0,
+                      (d.id === doc.orderId || orderRemaining(db, d) > 0),
                   )
                   .map((d) => (
                     <option key={d.id} value={d.id}>
@@ -458,7 +523,11 @@ export function Editor({
                 }))}
                 onChange={setItem}
               />
-              <button type="button" disabled={!candidate} onClick={addItem}>
+              <button
+                type="button"
+                disabled={!candidate || !!cannotAdd}
+                onClick={addItem}
+              >
                 <Plus size={16} />
                 Tambah baris
               </button>
@@ -479,7 +548,6 @@ export function Editor({
               "Diskon produk",
               "Serial number (opsional)",
               "Subtotal",
-              "",
             ]}
           >
             {lines.map((l, i) => (
@@ -489,20 +557,64 @@ export function Editor({
                   <small>
                     {l.code} · {l.unit}
                     {isRet && parent
-                      ? ` · sisa ${qty((linesOf(db, parent.id).find((x) => x.id === l.refLineId)?.qty || 0) - returned(db, l.refLineId))}`
+                      ? ` · sisa ${qty((linesOf(db, parent.id).find((x) => x.id === l.refLineId)?.qty || 0) - returned(db, l.refLineId, doc.id))}`
                       : ""}
                   </small>
+                  {doc.kind === "sale" && (
+                    <small>
+                      {initial.status === "final"
+                        ? "Batas qty penjualan"
+                        : "Stok tersedia"}
+                      : {qty(stockLimits.get(l.itemId) ?? 0)} {l.unit}
+                    </small>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Hapus baris ${l.name}`}
+                    className="line-remove"
+                    onClick={() =>
+                      setLines((current) =>
+                        current.filter((line) => line.id !== l.id),
+                      )
+                    }
+                  >
+                    <Trash2 size={14} />
+                    Hapus baris
+                  </button>
                 </td>
                 <td>
                   <NumberInput
                     aria-label={`Qty ${l.name}`}
                     className="qty-input"
                     min="0.001"
+                    max={
+                      doc.kind === "sale"
+                        ? (stockLimits.get(l.itemId) ?? 0)
+                        : undefined
+                    }
+                    aria-invalid={exceedsStock(l)}
+                    aria-describedby={
+                      exceedsStock(l) ? `stock-error-${l.id}` : undefined
+                    }
                     decimals={3}
                     required
                     value={l.qty}
                     onValueChange={(value) => patch(i, "qty", value)}
                   />
+                  {exceedsStock(l) && (
+                    <small
+                      className="stock-error"
+                      id={`stock-error-${l.id}`}
+                      role="alert"
+                    >
+                      Stok tidak cukup.{" "}
+                      {initial.status === "final"
+                        ? "Batas qty penjualan"
+                        : "Tersedia"}{" "}
+                      {qty(stockLimits.get(l.itemId) ?? 0)} {l.unit}; Qty
+                      diminta {qty(l.qty)} {l.unit}.
+                    </small>
+                  )}
                 </td>
                 <td>
                   <NumberInput
@@ -564,16 +676,6 @@ export function Editor({
                   />
                 </td>
                 <td>{money(previewTotal(l))}</td>
-                <td>
-                  <button
-                    type="button"
-                    aria-label={`Hapus ${l.name}`}
-                    className="icon-button"
-                    onClick={() => setLines(lines.filter((_, n) => n !== i))}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </td>
               </tr>
             ))}
           </Table>
@@ -658,18 +760,31 @@ export function Editor({
           </div>
         </div>
         <p className="form-note">
-          {isOrder(doc.kind)
-            ? "Order tidak mengubah stok. Buat transaksi terkait untuk pemenuhan."
-            : isRet
-              ? "Retur penjualan masuk kembali sebagai stok layak jual. Saldo berlebih menjadi kredit pihak terkait."
-              : "Dokumen final mengubah stok dan tagihan. Pembayaran dicatat terpisah di menu Pelunasan."}
+          {initial.status === "final"
+            ? "Perubahan memperbarui stok, tagihan, dan HPP transaksi terkait. Riwayat edit tersimpan di aktivitas."
+            : isOrder(doc.kind)
+              ? "Order tidak mengubah stok. Buat transaksi terkait untuk pemenuhan."
+              : isRet
+                ? "Retur penjualan masuk kembali sebagai stok layak jual. Saldo berlebih menjadi kredit pihak terkait."
+                : "Dokumen final mengubah stok dan tagihan. Pembayaran dicatat terpisah di menu Pelunasan."}
         </p>
         <footer className="modal-footer">
-          <button type="button" disabled={busy} onClick={() => save(false)}>
-            Simpan draf
-          </button>
-          <button className="primary" disabled={busy || !lines.length}>
-            Sahkan {labels[doc.kind].toLowerCase()}
+          {initial.status !== "final" && (
+            <button
+              type="button"
+              disabled={busy || hasStockError}
+              onClick={() => save(false)}
+            >
+              Simpan draf
+            </button>
+          )}
+          <button
+            className="primary"
+            disabled={busy || !lines.length || hasStockError}
+          >
+            {initial.status === "final"
+              ? "Simpan perubahan"
+              : `Sahkan ${labels[doc.kind].toLowerCase()}`}
           </button>
         </footer>
       </form>
@@ -680,6 +795,7 @@ export function Detail({
   db,
   doc,
   onClose,
+  onEdit,
   onCancel,
   onDelete,
   onPrint,
@@ -687,6 +803,7 @@ export function Detail({
   db: DB;
   doc: Doc;
   onClose: () => void;
+  onEdit: () => void;
   onCancel: () => void;
   onDelete: () => void;
   onPrint: (mode: "normal" | "copy" | "both") => void;
@@ -746,6 +863,12 @@ export function Detail({
         )}
       </div>
       <footer className="modal-footer">
+        {doc.status === "final" && (
+          <button onClick={onEdit}>
+            <Pencil size={16} />
+            Edit dokumen
+          </button>
+        )}
         {doc.status === "draft" && (
           <button className="danger" onClick={onDelete}>
             Hapus draf

@@ -1,8 +1,11 @@
+import { ImportCSV } from "./ImportCSV";
+import { exportData } from "./dataImport";
 import { NumberInput } from "./inputs";
+import { saveCatalogItem, reviseParty } from "./revisions";
 import { useState } from "react";
 import { Plus, Pencil, Power } from "lucide-react";
 import { type DB, type Item, type Party, uid, money, qty } from "./types";
-import { stock, balance, saveItem, saveParty, audit } from "./domain";
+import { stock, balance, saveParty, audit } from "./domain";
 import { type Commit, Modal, Field, Empty, Table, Status, Toolbar } from "./ui";
 import { exportCSV } from "./storage";
 export function Masters({
@@ -63,34 +66,18 @@ export function Masters({
       audit(d, row.active ? "Aktifkan master" : "Nonaktifkan master", row.code);
     }, "Status diperbarui");
   };
-  const csv = () =>
-    exportCSV(
-      `${kind}.csv`,
-      items
-        ? ["Kode", "Nama", "Satuan", "Stok", "Harga beli", "Harga jual"]
-        : ["Kode", "Nama", "Telepon", "Alamat", "Saldo"],
-      list.map((x) =>
-        items
-          ? [
-              x.code,
-              x.name,
-              (x as Item).unit,
-              stock(db, x.id).qty,
-              (x as Item).buyPrice,
-              (x as Item).sellPrice,
-            ]
-          : [
-              x.code,
-              x.name,
-              (x as Party).phone,
-              (x as Party).address,
-              balance(db, x.id),
-            ],
-      ),
+  const csv = () => {
+    const data = exportData(
+      db,
+      kind,
+      list.map((x) => x.id),
     );
+    exportCSV(`${kind}.csv`, data.headers, data.rows);
+  };
   return (
     <>
       <Toolbar search={search} setSearch={setSearch} onExport={csv}>
+        <ImportCSV db={db} target={kind} commit={commit} busy={busy} />
         <label className="check">
           <input
             type="checkbox"
@@ -218,8 +205,10 @@ export function Masters({
                 await commit(
                   (d) =>
                     items
-                      ? saveItem(d, editing as Item)
-                      : saveParty(d, editing as Party),
+                      ? saveCatalogItem(d, editing as Item)
+                      : (d.parties.some((p) => p.id === editing.id)
+                          ? reviseParty
+                          : saveParty)(d, editing as Party),
                   "Data tersimpan",
                 )
               )
@@ -266,48 +255,33 @@ export function Masters({
                       />
                     </Field>
                   ))}
-                  {(
-                    [
-                      "buyPrice",
-                      "sellPrice",
-                      "openingQty",
-                      "openingCost",
-                      "minStock",
-                    ] as const
-                  ).map((key, i) => (
-                    <Field
-                      key={key}
-                      label={
-                        [
-                          "Harga beli default (Rp)",
-                          "Harga jual default (Rp)",
-                          "Stok awal",
-                          "Total nilai stok awal (Rp)",
-                          "Batas stok minimum",
-                        ][i]
-                      }
-                      hint={
-                        key === "openingCost"
-                          ? "Total modal seluruh stok awal, bukan harga per unit."
-                          : undefined
-                      }
-                    >
-                      <NumberInput
-                        min="0"
-                        decimals={
-                          ["openingQty", "minStock"].includes(key) ? 3 : 0
+                  {(["buyPrice", "sellPrice", "minStock"] as const).map(
+                    (key, i) => (
+                      <Field
+                        key={key}
+                        label={
+                          [
+                            "Harga beli default (Rp)",
+                            "Harga jual default (Rp)",
+                            "Batas stok minimum",
+                          ][i]
                         }
-                        required
-                        value={(editing as Item)[key]}
-                        onValueChange={(value) =>
-                          setEditing({
-                            ...editing,
-                            [key]: value,
-                          })
-                        }
-                      />
-                    </Field>
-                  ))}
+                      >
+                        <NumberInput
+                          min="0"
+                          decimals={key === "minStock" ? 3 : 0}
+                          required
+                          value={(editing as Item)[key]}
+                          onValueChange={(value) =>
+                            setEditing({
+                              ...editing,
+                              [key]: value,
+                            })
+                          }
+                        />
+                      </Field>
+                    ),
+                  )}
                 </>
               ) : (
                 <>
@@ -351,6 +325,16 @@ export function Masters({
                 </>
               )}
             </div>
+            {items && (
+              <p className="form-note">
+                Barang baru dimulai dengan stok 0. Catat dan sahkan pembelian
+                untuk menambah stok serta modal; harga beli default tidak
+                menambah stok.
+                {db.items.some(
+                  (i) => i.id === editing.id && i.openingQty > 0,
+                ) && <> Stok awal dari data lama tetap dipertahankan.</>}
+              </p>
+            )}
             <footer className="modal-footer">
               <button type="button" onClick={() => setEditing(null)}>
                 Batal

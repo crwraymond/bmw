@@ -18,15 +18,24 @@ export function Field({
   label,
   children,
   hint,
+  action,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  action?: ReactNode;
 }) {
   const id = useId();
   return (
     <div className="field">
-      <label id={id}>{label}</label>
+      {action ? (
+        <div className="field-heading">
+          <label id={id}>{label}</label>
+          {action}
+        </div>
+      ) : (
+        <label id={id}>{label}</label>
+      )}
       {Children.map(children, (child) =>
         isValidElement(child) &&
         (["input", "select", "textarea"].includes(String(child.type)) ||
@@ -71,6 +80,7 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const d = ref.current!;
     d.showModal();
@@ -79,6 +89,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       className={wide ? "modal wide" : "modal"}
       onCancel={(e) => {
         e.preventDefault();
@@ -86,7 +97,7 @@ export function Modal({
       }}
     >
       <div className="modal-header">
-        <h2>{title}</h2>
+        <h2 id={titleId}>{title}</h2>
         <button
           type="button"
           className="icon-button"
@@ -123,13 +134,13 @@ export function Toolbar({
         />
       </div>
       <div className="actions">
-        {children}
         {onExport && (
           <button onClick={onExport}>
             <Download size={16} />
             Ekspor CSV
           </button>
         )}
+        {children}
       </div>
     </div>
   );

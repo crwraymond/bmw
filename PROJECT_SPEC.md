@@ -29,8 +29,15 @@ Dokumen ini adalah bahan untuk merancang dan membangun aplikasi, bukan pernyataa
 - Permintaan awal adalah menyusun dokumen Markdown, lalu pengguna meminta implementasi aplikasi.
 - Tambahan kebutuhan: diskon dapat diatur pada masing-masing produk. Implementasi menyediakan persen atau Rupiah per unit, serta mempertahankan diskon total sebagai potongan tambahan.
 - Tambahan kebutuhan: jumlah kotak serial number mengikuti Qty barang.
-- Tambahan kebutuhan: dashboard menampilkan total modal; implementasi memakai nilai persediaan terkini berdasarkan HPP.
+- Klarifikasi terbaru pengguna: total modal berarti modal seluruh barang yang pernah dibeli. Dashboard menghitung nilai stok awal + seluruh pembelian final - retur pembelian final untuk semua waktu; penjualan tidak menguranginya. Nilai persediaan tersisa berdasarkan HPP tetap tersedia terpisah dalam laporan.
+- Tema gelap menjadi default, dapat diganti ke tema terang dengan pilihan tersimpan di perangkat. Invoice dan hasil cetak mempertahankan kertas putih serta teks/border hitam.
+- Tombol Lunasi pada halaman Pelunasan ditempatkan pada kolom Aksi.
+- Saat mendaftarkan barang baru, stok dan nilai awal selalu nol. Penambahan stok operasional melalui pembelian yang disahkan; form tambah/edit barang tidak dapat mengisi stok atau nilai awal. Stok historis dari data lama/impor/pemulihan tetap dipertahankan.
 - Penyederhanaan pabrik: hanya satu pemasok dan pengguna tidak perlu mendaftarkan atau memilihnya. Pembelian, retur pembelian, order, serta pelunasan tetap tersedia.
+- Identitas sidebar mengikuti nama toko dari Pengaturan dan hanya menampilkan ikon serta nama toko.
+- Logo Mitra Ecobike diambil dari contoh yang diberikan sebagai logo/ikon aplikasi.
+- Data master, dokumen final, dan pembayaran bisa diedit langsung tanpa harus dibatalkan terlebih dahulu; stok, HPP, saldo, dan audit tetap konsisten.
+- Instruksi pekerjaan terbaru: kerjakan perubahan lokal terlebih dahulu, tanpa build atau push.
 
 Target sistem operasi sudah ditentukan pengguna: **Windows**. Implementasi awal memilih Windows x64 dan installer NSIS `.exe`, dengan build melalui GitHub Actions. Pratinjau web tetap dapat dijalankan di macOS untuk pengembangan.
 
@@ -569,14 +576,14 @@ Pendekatan CSV tetap mengikuti kebutuhan pengguna, tetapi kebutuhan ini lebih ru
 | --- | --- |
 | Stok negatif | Usulan diblokir secara default; apakah operator boleh melakukan pengecualian? |
 | Satuan dan isi | Apa arti Isi, satuan dasar, dan konversi kemasan? |
-| Stok awal | Dicatat sekali sebagai mutasi awal, berbeda dari pembelian baru. |
+| Stok awal | Hanya dipertahankan untuk data historis/impor/pemulihan. Barang baru melalui form selalu nol; pemasukan stok rutin melalui pembelian final. |
 | Order | Apakah reservasi stok, pemenuhan parsial, pembatalan, dan over-fulfillment dibutuhkan? |
 | Nomor dokumen | Apakah nomor otomatis, manual, per tahun, atau mengikuti nomor faktur pemasok? |
 | Pembayaran | Apakah penjualan dan pembelian mendukung tunai, kredit, serta pembayaran awal? |
 | Saldo awal | Bagaimana mencatat piutang dan hutang sebelum mulai memakai aplikasi? |
 | Diskon pembelian | Bentuk diskon, pembulatan, waktu penerapan, serta pengaruh ke biaya dan saldo. |
 | Retur | Masuk stok layak jual atau rusak; mengurangi tagihan atau mengembalikan uang? |
-| Modal/Laba | Apakah modal berarti nilai stok, modal usaha, atau HPP? Metode biaya apa yang dipakai? |
+| Modal/Laba | Total modal diklarifikasi sebagai nilai stok awal + seluruh pembelian final bersih setelah retur pembelian. HPP rata-rata bergerak dan nilai persediaan tersisa ditampilkan terpisah. |
 | Keuntungan dashboard | Usulan laba kotor dengan HPP historis. Apakah perlu laba bersih dan pencatatan biaya operasional? |
 | Pajak dan biaya lain | Belum terlihat pada foto; jangan otomatis menambahkan rumusnya. |
 | Koreksi historis | Apakah transaksi boleh diubah setelah dilunasi atau diretur? Bagaimana penelusurannya? |
@@ -691,3 +698,28 @@ Tautan berikut menunjuk file sumber lokal saat dokumen disusun. Jika dokumen dip
 | 18 | Contoh invoice cetak, judul Copy Invoice dan cap COPY diagonal | [016f3459-7836-4951-8ba3-c97118319657.JPG](/Users/christian.wijaya/Downloads/016f3459-7836-4951-8ba3-c97118319657.JPG) |
 
 Referensi teknis untuk rancangan Tauri: [Distribusi aplikasi](https://v2.tauri.app/distribute/) dan [akses file lokal](https://v2.tauri.app/plugin/file-system/). Tautan ini mendukung pendekatan teknis, bukan sumber aturan bisnis toko.
+
+
+## Impor CSV lengkap (tambahan kebutuhan pengguna)
+
+Pengguna meminta impor untuk seluruh data operasional termasuk transaksi dan pembayaran, dengan pilihan Upsert atau Replace. Implementasi mencakup barang, customer, enam jenis dokumen, pembayaran dan alokasi, serta impor gabungan dari Pengaturan. Laporan dihitung ulang dari data sumber.
+
+Upsert mencocokkan kode/nomor tanpa membedakan kapital dan mempertahankan ID lokal. Replace hanya mengganti dataset yang disertakan; master yang masih dirujuk dinonaktifkan, penghapusan dokumen yang masih dirujuk ditolak. CSV gabungan menyertakan penanda dataset kosong agar Replace seluruh kategori dapat dilakukan secara eksplisit.
+
+Ekspor memuat detail baris, diskon produk, SN, snapshot invoice, urutan dokumen, relasi order/retur, uang muka dan alokasi. Pratinjau menampilkan tambah/perbarui/hapus/nonaktifkan, validasi dilakukan pada salinan data, revisi diperiksa kembali saat penerapan, dan satu kegagalan membatalkan seluruh impor. Template dan panduan ada di `IMPORT_CSV.md`. Profil toko dan riwayat aktivitas tetap melalui backup lengkap.
+
+Pengerjaan fitur ini hanya pada source lokal; tidak membuat build aplikasi, commit, atau push.
+
+
+## Penyempurnaan invoice berdasarkan klarifikasi pengguna
+
+Pengguna memperjelas bahwa hasil cetak harus menyertakan logo Mitra Ecobike dan Phylion, teks WARRANTY TERMS & CONDITIONS, rekening bank, dan tanda tangan seperti referensi; bukan hanya area template kosong. Data referensi tersebut disediakan sebagai bawaan yang dapat diedit melalui Pengaturan. Nama toko/sidebar dan nama penerbit invoice dapat diatur terpisah. Invoice lama yang kosong dilengkapi untuk identitas Mitra, serta tersedia aksi mengambil profil terbaru pada pratinjau. Nilai transaksi dan pembayaran tidak berubah akibat pembaruan profil cetak.
+
+
+Logo default harus sama dengan logo pada referensi pengguna. Pengaturan menyediakan unggah logo masing-masing serta Reset ke bawaan per logo; reset selalu mengembalikan aset asli yang sama dan bisa digunakan kembali pada invoice.
+
+
+Klarifikasi terbaru: invoice harus otomatis memakai data penerbit, logo, rekening, tanda tangan, dan garansi dari Pengaturan yang telah disimpan. Default cetak memakai Pengaturan tersimpan; pengguna masih bisa memilih Profil saat transaksi untuk cetak ulang historis. Perubahan tampilan tidak mengganti data sumber transaksi maupun snapshot yang tersimpan kecuali pengguna memilih aksi Simpan profil ke dokumen.
+
+
+Default teks garansi, syarat pembayaran, dan negara berlaku juga untuk profil pengaturan bernama khusus seperti BMW. Field kosong pada profil lama dilengkapi sekali, tetap dapat diedit, serta dapat dikembalikan lewat reset per bagian. Rekening dan identitas pengguna tidak ikut ditimpa.
