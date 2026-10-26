@@ -960,6 +960,27 @@ td input {
   color: #8195a2;
   font-size: 10px;
 }
+.serial-unit > .search-select {
+  flex: 1;
+  width: 190px;
+}
+.serial-inputs > small {
+  display: block;
+  font-size: 10px;
+  color: inherit;
+  white-space: normal;
+  margin-top: 7px;
+}
+.desktop-exit {
+  padding: 5px 9px;
+  min-height: 32px;
+  font-size: 11px;
+}
+.desktop-access-actions {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+}
 .serial-unit > input {
   min-width: 0;
   flex: 1;

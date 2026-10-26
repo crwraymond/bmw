@@ -73,7 +73,7 @@ function post(db: DB, kind: Kind, qty = 3, orderId = "") {
         qty,
         discountType: "percent",
         discountValue: 10,
-        serials: "0001,0002,0003",
+        serials: ["0001", "0002", "0003"].slice(0, qty).join("\n"),
       },
     ],
     true,
@@ -97,7 +97,19 @@ function ledger() {
     saveDoc(
       db,
       d,
-      [{ ...l, id: uid(), docId: d.id, refLineId: l.id, qty: 1 }],
+      [
+        {
+          ...l,
+          id: uid(),
+          docId: d.id,
+          refLineId: l.id,
+          qty: 1,
+          serials: l.serials
+            .split(/\r?\n|,/)
+            .slice(0, 1)
+            .join("\n"),
+        },
+      ],
       true,
     );
   }
@@ -151,7 +163,14 @@ function figures(db: DB) {
     balance: db.parties.map((p) => [p.code, balance(db, p.id)]),
     metrics: metrics(db, "2000-01-01", "2099-01-01"),
     docs: db.documents
-      .map((d) => [d.kind, d.number, d.status, d.total, d.downPayment])
+      .map((d) => [
+        d.kind,
+        d.number,
+        d.status,
+        d.total,
+        d.downPayment,
+        d.serialTracking || "",
+      ])
       .sort(),
     lines: db.lines
       .map((l) => [
@@ -435,7 +454,19 @@ describe("complete CSV import", () => {
     saveDoc(
       db,
       d,
-      [{ ...l, id: uid(), docId: d.id, refLineId: l.id, qty: 1 }],
+      [
+        {
+          ...l,
+          id: uid(),
+          docId: d.id,
+          refLineId: l.id,
+          qty: 1,
+          serials: l.serials
+            .split(/\r?\n|,/)
+            .slice(0, 1)
+            .join("\n"),
+        },
+      ],
       true,
     );
     expect(() =>

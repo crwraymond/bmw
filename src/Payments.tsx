@@ -2,8 +2,8 @@ import { ImportCSV } from "./ImportCSV";
 import { exportData } from "./dataImport";
 import { NumberInput, SearchSelect } from "./inputs";
 import { useState } from "react";
-import { Plus, Ban, Pencil, Check } from "lucide-react";
-import { revisePayment } from "./revisions";
+import { Plus, Ban, Pencil, Check, Trash2 } from "lucide-react";
+import { revisePayment, deletePayment } from "./revisions";
 import { type DB, type Payment, uid, today, money, dateLabel } from "./types";
 import {
   balance,
@@ -16,7 +16,16 @@ import {
   returnedValue,
   settleInvoice,
 } from "./domain";
-import { type Commit, Toolbar, Empty, Table, Status, Modal, Field } from "./ui";
+import {
+  type Commit,
+  Toolbar,
+  Empty,
+  Table,
+  Status,
+  Modal,
+  Field,
+  DeleteConfirm,
+} from "./ui";
 import { exportCSV } from "./storage";
 export function Payments({
   db,
@@ -31,6 +40,7 @@ export function Payments({
 }) {
   const [search, setSearch] = useState("");
   const [edit, setEdit] = useState<Payment | null>(null);
+  const [deleting, setDeleting] = useState<Payment | null>(null);
   const [alloc, setAlloc] = useState<Record<string, number>>({});
   const [kind, setKind] = useState<"customer" | "supplier">("customer");
   const list = db.payments
@@ -219,22 +229,33 @@ export function Payments({
                   <Status value={p.status} />
                 </td>
                 <td>
-                  {p.status === "final" && (
-                    <div className="row-actions">
-                      <button
-                        title="Edit pembayaran"
-                        onClick={() => openEdit(p)}
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        title="Batalkan pembayaran"
-                        onClick={() => onCancel(p)}
-                      >
-                        <Ban size={15} />
-                      </button>
-                    </div>
-                  )}
+                  <div className="row-actions">
+                    <button
+                      className="icon-button"
+                      disabled={busy}
+                      title="Hapus pembayaran"
+                      aria-label={`Hapus pembayaran ${p.number}`}
+                      onClick={() => setDeleting(p)}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                    {p.status === "final" && (
+                      <>
+                        <button
+                          title="Edit pembayaran"
+                          onClick={() => openEdit(p)}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          title="Batalkan pembayaran"
+                          onClick={() => onCancel(p)}
+                        >
+                          <Ban size={15} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -251,6 +272,22 @@ export function Payments({
           />
         )}
       </section>
+      {deleting && (
+        <DeleteConfirm
+          name={`pembayaran ${deleting.number} (${money(deleting.amount)})`}
+          busy={busy}
+          onClose={() => setDeleting(null)}
+          onConfirm={async () => {
+            if (
+              await commit(
+                (d) => deletePayment(d, deleting.id),
+                "Pembayaran dihapus",
+              )
+            )
+              setDeleting(null);
+          }}
+        />
+      )}
       {edit && (
         <Modal
           title={

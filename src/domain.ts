@@ -16,6 +16,7 @@ import {
   emptyDB,
 } from "./types";
 import { defaultLogo } from "./branding";
+import { validateSerialTimeline } from "./serialInventory";
 function check(ok: unknown, message: string): asserts ok {
   if (!ok) throw new Error(message);
 }
@@ -153,7 +154,11 @@ export function withStoreDefaults(db: DB): DB {
   return {
     ...withLineDiscountDefaults(db),
     settings,
-    documents,
+    // Keep every row a string so mixed legacy/current CSV columns roundtrip.
+    documents: documents.map((doc) => ({
+      ...doc,
+      serialTracking: doc.serialTracking ?? "",
+    })),
     payments: db.payments.map((p) => ({
       ...p,
       sourceDocId: p.sourceDocId || "",
@@ -325,6 +330,7 @@ export function nextNumber(db: DB, kind: Kind | "payment") {
 export function newDoc(db: DB, kind: Kind): Doc {
   const s = db.settings[0];
   return {
+    serialTracking: "v1",
     id: uid(),
     kind,
     status: "draft",
@@ -628,6 +634,12 @@ export function saveDoc(
     doc.kind === "sale" || !doc.downPayment,
     "Uang muka hanya dicatat otomatis pada penjualan.",
   );
+  if (final)
+    validateSerialTimeline({
+      ...db,
+      documents: [...db.documents.filter((d) => d.id !== doc.id), doc],
+      lines: [...db.lines.filter((l) => l.docId !== doc.id), ...lines],
+    });
   db.parties = parties;
   db.documents = old
     ? db.documents.map((d) => (d.id === doc.id ? doc : d))
@@ -879,6 +891,7 @@ export function validateDB(value: unknown): asserts value is DB {
           .reduce((s, a) => s + a.amount, 0) <= p.amount,
       "Data pembayaran tidak valid.",
     );
+  validateSerialTimeline(db);
 }
 export function metrics(db: DB, from: string, to: string) {
   const ds = activeDocs(db).filter((d) => d.date >= from && d.date <= to);

@@ -3,6 +3,12 @@ import { exportData } from "./dataImport";
 import { NumberInput, SearchSelect } from "./inputs";
 import { SerialInputs } from "./SerialInputs";
 import { serialText } from "./serials";
+import {
+  availableSerials,
+  serialErrors,
+  serialList,
+  serialKey,
+} from "./serialInventory";
 import { reviseDocument } from "./revisions";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, Trash2, Eye, Pencil } from "lucide-react";
@@ -44,6 +50,7 @@ export function DocumentList({
   commit,
   busy,
   onView,
+  onDelete,
   openNew = false,
   onOpened,
 }: {
@@ -52,6 +59,7 @@ export function DocumentList({
   commit: Commit;
   busy: boolean;
   onView: (d: Doc) => void;
+  onDelete: (d: Doc) => void;
   openNew?: boolean;
   onOpened: () => void;
 }) {
@@ -135,6 +143,14 @@ export function DocumentList({
                 </td>
                 <td>
                   <div className="row-actions">
+                    <button
+                      title="Hapus dokumen"
+                      aria-label={`Hapus ${d.number}`}
+                      disabled={busy}
+                      onClick={() => onDelete(d)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                     <button title="Lihat detail" onClick={() => onView(d)}>
                       <Eye size={16} />
                     </button>
@@ -218,7 +234,10 @@ export function Editor({
     window.addEventListener("keydown", shortcut);
     return () => window.removeEventListener("keydown", shortcut);
   }, [busy]);
-  const [doc, setDoc] = useState({ ...initial });
+  const [doc, setDoc] = useState({
+    ...initial,
+    serialTracking: initial.status === "final" ? initial.serialTracking : "v1",
+  });
   const [lines, setLines] = useState<Line[]>(
     linesOf(db, initial.id).map((l) => ({ ...l })),
   );
@@ -237,12 +256,23 @@ export function Editor({
   const exceedsStock = (line: Line) =>
     doc.kind === "sale" && line.qty > (stockLimits.get(line.itemId) ?? 0);
   const hasStockError = lines.some(exceedsStock);
+  const snErrors = useMemo(
+    () => serialErrors(db, doc, lines),
+    [db, doc, lines],
+  );
+  const serialChoices = useMemo(
+    () => new Map(db.items.map((i) => [i.id, availableSerials(db, i.id, doc)])),
+    [db, doc],
+  );
   const parties = db.parties.filter(
     (p) => p.kind === partyKind(doc.kind) && (p.active || p.id === doc.partyId),
   );
   const parent = db.documents.find((d) => d.id === doc.refId);
-  const patch = (i: number, key: keyof Line, value: string | number) =>
+  const patch = (i: number, key: keyof Line, value: string | number) => {
+    if (key === "serials")
+      setDoc((current) => ({ ...current, serialTracking: "v1" }));
     setLines(lines.map((l, n) => (n === i ? { ...l, [key]: value } : l)));
+  };
   const chooseParent = (id: string) => {
     const p = db.documents.find((d) => d.id === id);
     setDoc({ ...doc, refId: id, partyId: p?.partyId || "" });
@@ -257,6 +287,22 @@ export function Editor({
               refLineId: l.id,
               qty:
                 Math.round((l.qty - returned(db, l.id, doc.id)) * 1000) / 1000,
+              serials: serialList(l.serials)
+                .filter(
+                  (s) =>
+                    !db.lines.some(
+                      (r) =>
+                        r.refLineId === l.id &&
+                        r.docId !== doc.id &&
+                        db.documents.some(
+                          (d) => d.id === r.docId && d.status === "final",
+                        ) &&
+                        serialList(r.serials).some(
+                          (v) => serialKey(v) === serialKey(s),
+                        ),
+                    ),
+                )
+                .join("\n"),
             }))
         : [],
     );
@@ -338,6 +384,7 @@ export function Editor({
   const subtotal = lines.reduce((s, l) => s + previewTotal(l), 0);
   const save = async (final: boolean) => {
     if (hasStockError) return;
+    if (final && snErrors.size) return;
     if (!formRef.current?.reportValidity()) return;
     if (
       await commit(
@@ -673,7 +720,18 @@ export function Editor({
                     quantity={l.qty}
                     value={l.serials}
                     onChange={(value) => patch(i, "serials", value)}
+                    options={
+                      doc.kind === "sale" &&
+                      serialChoices.get(l.itemId)?.tracked
+                        ? serialChoices.get(l.itemId)?.values
+                        : undefined
+                    }
                   />
+                  {snErrors.has(l.id) && (
+                    <small className="stock-error" role="alert">
+                      {snErrors.get(l.id)}
+                    </small>
+                  )}
                 </td>
                 <td>{money(previewTotal(l))}</td>
               </tr>
@@ -780,7 +838,9 @@ export function Editor({
           )}
           <button
             className="primary"
-            disabled={busy || !lines.length || hasStockError}
+            disabled={
+              busy || !lines.length || hasStockError || snErrors.size > 0
+            }
           >
             {initial.status === "final"
               ? "Simpan perubahan"
@@ -869,11 +929,9 @@ export function Detail({
             Edit dokumen
           </button>
         )}
-        {doc.status === "draft" && (
-          <button className="danger" onClick={onDelete}>
-            Hapus draf
-          </button>
-        )}
+        <button className="danger" onClick={onDelete}>
+          {doc.status === "draft" ? "Hapus draf" : "Hapus dokumen"}
+        </button>
         {doc.status === "final" && (
           <button className="danger" onClick={onCancel}>
             Batalkan dokumen

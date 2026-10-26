@@ -185,6 +185,8 @@ test("invoice memakai proporsi referensi lima barang, normal dan COPY", async ({
     ];
     const prices = [1450000, 1450000, 208000, 75000, 65000],
       quantities = [1, 1, 2, 2, 2];
+    // The reference displays one wrapped legacy SN across two text lines.
+    invoice.serialTracking = undefined;
     const lines = descriptions.map((name, index) => {
       const item = {
         ...db.items[0],

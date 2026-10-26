@@ -19,7 +19,9 @@ import {
   saveItem,
   saveParty,
   validateDB,
+  cancelDoc,
 } from "./domain";
+import { validateSerialChanges } from "./serialInventory";
 function requireValue(ok: unknown, message: string): asserts ok {
   if (!ok) throw new Error(message);
 }
@@ -237,6 +239,7 @@ export function reviseDocument(db: DB, input: Doc, inputLines: Line[]) {
       amount: updated.downPayment,
     });
   }
+  validateSerialChanges(db, work);
   const result = recalculate(work, old.id);
   audit(
     result,
@@ -338,6 +341,68 @@ export function saveCatalogItem(db: DB, item: Item) {
   );
   if (old) reviseItem(db, item);
   else saveItem(db, item);
+}
+export function deleteMaster(db: DB, kind: "items" | "customer", id: string) {
+  if (kind === "items") {
+    const item = db.items.find((i) => i.id === id);
+    requireValue(item, "Barang tidak ditemukan.");
+    requireValue(
+      !db.lines.some((l) => l.itemId === id),
+      "Barang masih dipakai pada dokumen. Hapus dokumen terkait dahulu, atau nonaktifkan barang.",
+    );
+    db.items = db.items.filter((i) => i.id !== id);
+    audit(db, "Hapus barang", item.code, item.name);
+  } else {
+    const party = db.parties.find((p) => p.id === id && p.kind === "customer");
+    requireValue(party, "Customer tidak ditemukan.");
+    requireValue(
+      !db.documents.some((d) => d.partyId === id) &&
+        !db.payments.some((p) => p.partyId === id),
+      "Customer masih dipakai pada dokumen/pembayaran. Hapus data terkait dahulu, atau nonaktifkan customer.",
+    );
+    db.parties = db.parties.filter((p) => p.id !== id);
+    audit(db, "Hapus customer", party.code, party.name);
+  }
+}
+export function deleteDocument(db: DB, id: string) {
+  const work = structuredClone(db),
+    doc = work.documents.find((d) => d.id === id);
+  requireValue(doc, "Dokumen tidak ditemukan.");
+  requireValue(
+    !work.documents.some((d) => d.refId === id || d.orderId === id),
+    "Dokumen masih dirujuk order/retur/transaksi lain. Hapus dokumen turunan terlebih dahulu.",
+  );
+  requireValue(
+    !work.allocations.some((a) => a.docId === id) &&
+      !work.payments.some((p) => p.sourceDocId === id),
+    "Dokumen masih memiliki pembayaran terkait. Hapus pembayaran tersebut terlebih dahulu.",
+  );
+  if (doc.status === "final") cancelDoc(work, id, "Hapus dokumen salah input");
+  work.documents = work.documents.filter((d) => d.id !== id);
+  work.lines = work.lines.filter((l) => l.docId !== id);
+  validateDB(work);
+  audit(work, "Hapus dokumen", doc.number, doc.kind);
+  Object.assign(db, work);
+}
+export function deletePayment(db: DB, id: string) {
+  const work = structuredClone(db),
+    payment = work.payments.find((p) => p.id === id);
+  requireValue(payment, "Pembayaran tidak ditemukan.");
+  const source = work.documents.find(
+    (d) => d.id === payment.sourceDocId || downPaymentFor(work, d)?.id === id,
+  );
+  if (
+    source &&
+    !work.payments.some(
+      (p) => p.id !== id && p.status === "final" && p.sourceDocId === source.id,
+    )
+  )
+    source.downPayment = 0;
+  work.payments = work.payments.filter((p) => p.id !== id);
+  work.allocations = work.allocations.filter((a) => a.paymentId !== id);
+  validateDB(work);
+  audit(work, "Hapus pembayaran", payment.number, String(payment.amount));
+  Object.assign(db, work);
 }
 export function reviseItem(db: DB, item: Item) {
   const work = structuredClone(db);

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { serialValues } from "./serials";
+import { SearchSelect } from "./inputs";
+import { serialKey } from "./serialInventory";
 
 const pageSize = 12;
 export function SerialInputs({
@@ -7,11 +9,13 @@ export function SerialInputs({
   quantity,
   name,
   onChange,
+  options,
 }: {
   value: string;
   quantity: number;
   name: string;
   onChange: (value: string) => void;
+  options?: string[];
 }) {
   const [page, setPage] = useState(0);
   const inputs = useRef(new Map<number, HTMLInputElement>());
@@ -46,27 +50,51 @@ export function SerialInputs({
               return (
                 <label className="serial-unit" key={index}>
                   <span>SN {index + 1}</span>
-                  <input
-                    ref={(input) => {
-                      if (input) inputs.current.set(index, input);
-                      else inputs.current.delete(index);
-                    }}
-                    aria-label={`SN ${name} unit ${index + 1}`}
-                    placeholder={`Serial number ${index + 1}`}
-                    value={values[index] || ""}
-                    onChange={(e) => update(index, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
-                      e.preventDefault();
-                      if (index + 1 >= count) return;
-                      const next = inputs.current.get(index + 1);
-                      if (next) next.focus();
-                      else {
-                        jump.current = index + 1;
-                        setPage(Math.floor((index + 1) / pageSize));
-                      }
-                    }}
-                  />
+                  {options ? (
+                    <SearchSelect
+                      aria-label={`SN ${name} unit ${index + 1}`}
+                      value={values[index] || ""}
+                      placeholder="Cari dan pilih SN…"
+                      emptyLabel="Tidak ada SN tersedia yang cocok."
+                      options={[
+                        ...new Set([
+                          ...options,
+                          ...(values[index] ? [values[index]] : []),
+                        ]),
+                      ]
+                        .filter(
+                          (s) =>
+                            !values.some(
+                              (v, n) =>
+                                n !== index && serialKey(v) === serialKey(s),
+                            ),
+                        )
+                        .map((s) => ({ value: s, label: s }))}
+                      onChange={(next) => update(index, next)}
+                    />
+                  ) : (
+                    <input
+                      ref={(input) => {
+                        if (input) inputs.current.set(index, input);
+                        else inputs.current.delete(index);
+                      }}
+                      aria-label={`SN ${name} unit ${index + 1}`}
+                      placeholder={`Serial number ${index + 1}`}
+                      value={values[index] || ""}
+                      onChange={(e) => update(index, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        if (index + 1 >= count) return;
+                        const next = inputs.current.get(index + 1);
+                        if (next) next.focus();
+                        else {
+                          jump.current = index + 1;
+                          setPage(Math.floor((index + 1) / pageSize));
+                        }
+                      }}
+                    />
+                  )}
                 </label>
               );
             },
@@ -125,6 +153,12 @@ export function SerialInputs({
               : "Isi Qty untuk menambahkan kotak SN per unit."}
           </small>
         </>
+      )}
+      {options && (
+        <small>
+          {options.length} SN tersedia. Kosongkan pilihan untuk unit stok lama
+          tanpa SN.
+        </small>
       )}
     </div>
   );

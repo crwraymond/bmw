@@ -29,6 +29,9 @@ Dokumen ini adalah bahan untuk merancang dan membangun aplikasi, bukan pernyataa
 - Permintaan awal adalah menyusun dokumen Markdown, lalu pengguna meminta implementasi aplikasi.
 - Tambahan kebutuhan: diskon dapat diatur pada masing-masing produk. Implementasi menyediakan persen atau Rupiah per unit, serta mempertahankan diskon total sebagai potongan tambahan.
 - Tambahan kebutuhan: jumlah kotak serial number mengikuti Qty barang.
+- SN dimasukkan saat pembelian, lalu tersedia untuk pencarian dan pemilihan saat penjualan. SN yang sudah keluar tidak boleh dijual dua kali; retur penjualan mengembalikannya ke stok.
+- Tombol hapus tersedia pada semua daftar data, dari barang/customer sampai order, transaksi, retur, dan pembayaran. Penghapusan dikonfirmasi dan ditolak jika merusak relasi, stok, atau saldo; data turunan dihapus terlebih dahulu.
+- Aplikasi Windows dibuka fullscreen dan menyediakan tombol Keluar dengan konfirmasi.
 - Klarifikasi terbaru pengguna: total modal berarti modal seluruh barang yang pernah dibeli. Dashboard menghitung nilai stok awal + seluruh pembelian final - retur pembelian final untuk semua waktu; penjualan tidak menguranginya. Nilai persediaan tersisa berdasarkan HPP tetap tersedia terpisah dalam laporan.
 - Tema gelap menjadi default, dapat diganti ke tema terang dengan pilihan tersimpan di perangkat. Invoice dan hasil cetak mempertahankan kertas putih serta teks/border hitam.
 - Tombol Lunasi pada halaman Pelunasan ditempatkan pada kolom Aksi.

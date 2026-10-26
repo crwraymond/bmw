@@ -33,7 +33,8 @@ import {
   today,
   labels,
 } from "./types";
-import { cancelDoc, cancelPayment, removeDraft } from "./domain";
+import { cancelDoc, cancelPayment } from "./domain";
+import { deleteDocument } from "./revisions";
 import { load, persist, desktop, restore } from "./storage";
 import { type Commit, Modal, Field } from "./ui";
 import { Dashboard } from "./Dashboard";
@@ -44,6 +45,7 @@ import { Payments } from "./Payments";
 import { Reports } from "./Reports";
 import { Settings } from "./Settings";
 import { Invoice } from "./Invoice";
+import { DesktopActions } from "./DesktopActions";
 import "./App.css";
 import "./theme.css";
 const sections = [
@@ -248,9 +250,9 @@ function App() {
       (d) => {
         if (c.type === "doc") cancelDoc(d, c.id, reason);
         else if (c.type === "payment") cancelPayment(d, c.id, reason);
-        else removeDraft(d, c.id);
+        else deleteDocument(d, c.id);
       },
-      c.type === "delete" ? "Draf dihapus" : "Pembatalan tersimpan",
+      c.type === "delete" ? "Dokumen dihapus" : "Pembatalan tersimpan",
     );
     if (ok) {
       setConfirmation(null);
@@ -272,6 +274,9 @@ function App() {
   if (locked)
     return (
       <div className="access-page">
+        <div className="desktop-access-actions">
+          <DesktopActions busy={busy} onError={(s) => notify(s, true)} />
+        </div>
         <div className="access-panel">
           <div className="brand-mark">
             <img src={defaultIcon} alt="Mitra Ecobike" />
@@ -311,6 +316,9 @@ function App() {
   if (fatal)
     return (
       <div className="access-page">
+        <div className="desktop-access-actions">
+          <DesktopActions busy={busy} onError={(s) => notify(s, true)} />
+        </div>
         <div className="access-panel">
           <CircleAlert size={35} />
           <h1>Data belum bisa dibuka</h1>
@@ -336,6 +344,9 @@ function App() {
   if (!db)
     return (
       <div className="access-page">
+        <div className="desktop-access-actions">
+          <DesktopActions busy={busy} onError={(s) => notify(s, true)} />
+        </div>
         <div className="loader" />
         <p>Membuka data toko…</p>
       </div>
@@ -434,6 +445,7 @@ function App() {
             <strong>{pageTitles[page]}</strong>
           </div>
           <div className="top-status">
+            <DesktopActions busy={busy} onError={(s) => notify(s, true)} />
             <button
               type="button"
               className="icon-button theme-toggle"
@@ -543,6 +555,7 @@ function App() {
               commit={commit}
               busy={busy}
               onView={setDetail}
+              onDelete={(d) => ask("delete", d.id, d.number)}
               openNew={newKind === docKind}
               onOpened={() => setNewKind(null)}
             />
@@ -613,7 +626,7 @@ function App() {
             confirmation.type === "restore"
               ? "Pulihkan backup?"
               : confirmation.type === "delete"
-                ? "Hapus draf?"
+                ? "Hapus dokumen?"
                 : "Batalkan pencatatan?"
           }
           onClose={() => setConfirmation(null)}
@@ -628,7 +641,9 @@ function App() {
               <p>
                 {confirmation.type === "restore"
                   ? "Data aktif akan diganti oleh backup yang kamu pilih. Pada desktop, data aktif dicadangkan terlebih dahulu."
-                  : `${confirmation.name}. Perubahan stok dan saldo akan dihitung ulang sesuai aturan pembatalan.`}
+                  : confirmation.type === "delete"
+                    ? `${confirmation.name}. Dokumen beserta detailnya akan dihapus. Hapus pembayaran dan dokumen turunan terlebih dahulu jika masih terhubung.`
+                    : `${confirmation.name}. Perubahan stok dan saldo akan dihitung ulang sesuai aturan pembatalan.`}
               </p>
               {["doc", "payment"].includes(confirmation.type) && (
                 <Field label="Alasan pembatalan">

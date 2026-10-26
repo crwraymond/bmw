@@ -28,6 +28,7 @@ import {
   withStoreDefaults,
 } from "./domain";
 import { downPaymentFor, recalculate } from "./revisions";
+import { validateSerialChanges } from "./serialInventory";
 import { parseCSV, csvNumber, headerKey, type CSVRow } from "./csv";
 
 export type ImportTarget = "items" | "customer" | Kind | "payments";
@@ -124,6 +125,7 @@ export const importHeaders = (t: ImportTarget) => [
       : docHeaders),
 ];
 const snapshotKeys = [
+  "serialTracking",
   "partyName",
   "partyAddress",
   "partyPhone",
@@ -542,6 +544,7 @@ export function prepareImport(
         );
         const d: Doc = {
           ...(old || newDoc(work, kind)),
+          serialTracking: old?.serialTracking,
           number,
           date: text(r, "Tanggal"),
           status: status(r, old?.status || "final"),
@@ -973,6 +976,7 @@ export function prepareImport(
       work.documents.some((d) => d.id === a.docId),
       "Transaksi masih dirujuk oleh pembayaran. Sertakan transaksi dalam file Replace.",
     );
+  validateSerialChanges(current, work);
   const result = recalculate(work);
   for (const d of result.documents.filter(
     (d) => d.status === "final" && ["sale", "purchase"].includes(d.kind),

@@ -14,6 +14,7 @@
       {
         "title": "Toko Offline",
         "theme": "Dark",
+        "fullscreen": true,
         "width": 1440,
         "height": 960,
         "minWidth": 900,

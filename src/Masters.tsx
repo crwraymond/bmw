@@ -1,12 +1,21 @@
 import { ImportCSV } from "./ImportCSV";
 import { exportData } from "./dataImport";
 import { NumberInput } from "./inputs";
-import { saveCatalogItem, reviseParty } from "./revisions";
+import { saveCatalogItem, reviseParty, deleteMaster } from "./revisions";
 import { useState } from "react";
-import { Plus, Pencil, Power } from "lucide-react";
+import { Plus, Pencil, Power, Trash2 } from "lucide-react";
 import { type DB, type Item, type Party, uid, money, qty } from "./types";
 import { stock, balance, saveParty, audit } from "./domain";
-import { type Commit, Modal, Field, Empty, Table, Status, Toolbar } from "./ui";
+import {
+  type Commit,
+  Modal,
+  Field,
+  Empty,
+  Table,
+  Status,
+  Toolbar,
+  DeleteConfirm,
+} from "./ui";
 import { exportCSV } from "./storage";
 export function Masters({
   db,
@@ -22,6 +31,7 @@ export function Masters({
   const [search, setSearch] = useState("");
   const [inactive, setInactive] = useState(false);
   const [editing, setEditing] = useState<Item | Party | null>(null);
+  const [deleting, setDeleting] = useState<Item | Party | null>(null);
   const items = kind === "items";
   const list = (
     items ? db.items : db.parties.filter((p) => p.kind === kind)
@@ -155,6 +165,14 @@ export function Masters({
                 <td>
                   <div className="row-actions">
                     <button
+                      disabled={busy}
+                      aria-label={`Hapus ${x.name}`}
+                      title="Hapus data"
+                      onClick={() => setDeleting(x)}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                    <button
                       aria-label={`Ubah ${x.name}`}
                       onClick={() => setEditing({ ...x })}
                     >
@@ -193,6 +211,22 @@ export function Masters({
           />
         )}
       </section>
+      {deleting && (
+        <DeleteConfirm
+          name={`${items ? "barang" : "customer"} ${deleting.code} — ${deleting.name}`}
+          busy={busy}
+          onClose={() => setDeleting(null)}
+          onConfirm={async () => {
+            if (
+              await commit(
+                (d) => deleteMaster(d, kind, deleting.id),
+                "Data dihapus",
+              )
+            )
+              setDeleting(null);
+          }}
+        />
+      )}
       {editing && (
         <Modal
           title={`${list.some((x) => x.id === editing.id) ? "Ubah" : "Tambah"} ${items ? "barang" : "customer"}`}

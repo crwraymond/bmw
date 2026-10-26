@@ -177,3 +177,42 @@ export function Table({
     </div>
   );
 }
+
+export function DeleteConfirm({
+  name,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  name: string;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <Modal title="Hapus data?" onClose={onClose}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void onConfirm();
+        }}
+      >
+        <div className="confirm-body">
+          <p>
+            Hapus {name}? Tindakan ini menghapus data beserta detailnya. Data
+            yang masih terhubung dengan transaksi lain harus diselesaikan atau
+            dihapus lebih dahulu.
+          </p>
+        </div>
+        <footer className="modal-footer">
+          <button type="button" disabled={busy} onClick={onClose}>
+            Batal
+          </button>
+          <button className="danger" disabled={busy}>
+            Hapus data
+          </button>
+        </footer>
+      </form>
+    </Modal>
+  );
+}

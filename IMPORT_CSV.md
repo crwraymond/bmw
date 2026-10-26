@@ -80,6 +80,14 @@ INV/2026/001,2026-10-25,C001,002,1,200000,amount,10000
 
 Order harus tersedia sebelum transaksi pemenuhannya dan transaksi asal harus tersedia sebelum retur. Dalam impor gabungan seluruh file diperiksa bersama sehingga relasinya dapat diselesaikan sekaligus. Harga pokok, diskon proporsional retur, stok, dan sisa order dihitung ulang; qty berlebih atau stok negatif menolak seluruh impor.
 
+## Pelacakan serial number
+
+Kolom `SN` tetap berupa teks per baris barang, dipisahkan koma atau baris baru. Pembelian final menerima SN; penjualan final mengeluarkan SN; retur penjualan mengembalikannya dan retur pembelian mengeluarkannya ke pemasok. Draf, order, dan dokumen batal tidak mencadangkan SN. SN dibandingkan tanpa membedakan huruf besar/kecil untuk barang yang sama.
+
+Dokumen baru dari form menggunakan pelacakan SN `v1`. Penanda ini dibawa pada JSON `Data invoice` hasil ekspor agar ekspor/impor tetap memeriksa SN duplikat, SN yang sudah terjual, jumlah SN melebihi Qty, serta SN retur yang tidak berasal dari transaksi asal. Jangan menghapus atau mengubah metadata tersebut. Perubahan SN sumber yang masih digunakan penjualan/retur ditolak; pembaruan gabungan hanya dapat diterapkan jika seluruh relasi SN tetap valid.
+
+CSV historis tanpa penanda versi tetap dapat dibaca dan tidak otomatis diberi syarat SN yang dahulu belum diwajibkan. Stok tanpa identitas unit tetap didukung; aplikasi tidak menebak SN yang tersisa jika mutasi lama tidak mencatat identitasnya. Untuk pencatatan rutin dengan pilihan SN, masukkan SN melalui Pembelian aplikasi dan sahkan sebelum menjual.
+
 ## Pembayaran
 
 **Satu baris untuk setiap alokasi tagihan.** Ulangi nomor pembayaran, tanggal, arah, customer, nominal, status, catatan, dan invoice uang muka secara konsisten. Pembayaran tanpa alokasi cukup satu baris dengan tagihan/alokasi kosong; nominalnya hanya boleh melunasi saldo awal.

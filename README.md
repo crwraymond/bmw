@@ -58,7 +58,7 @@ Hasil installer berada di `src-tauri\target\release\bundle\nsis\`. Build macOS t
 
 - Dashboard dengan filter periode, penjualan bersih, laba kotor, jumlah transaksi, rata-rata nota, total modal dari nilai stok awal + seluruh pembelian final bersih setelah retur pembelian, tren, produk terlaris, piutang/hutang, dan stok minimum. Penjualan tidak mengurangi total modal; nilai persediaan tersisa tetap tersedia di laporan Modal / laba.
 - Tema gelap menjadi bawaan. Tombol matahari/bulan di kanan atas mengganti tema terang/gelap; pilihan disimpan pada perangkat. Invoice dan hasil cetak tetap putih dengan teks/border hitam.
-- Barang dan customer: tambah, ubah, cari, aktif/nonaktif. Barang baru mulai dengan stok nol; stok dan modal bertambah melalui pembelian final. Form barang tidak menyediakan isian stok/nilai stok awal. Data stok historis yang sudah ada tetap dipertahankan; saldo awal customer tetap tersedia.
+- Barang dan customer: tambah, ubah, cari, aktif/nonaktif, serta hapus dengan konfirmasi jika belum dirujuk data lain. Barang baru mulai dengan stok nol; stok dan modal bertambah melalui pembelian final. Form barang tidak menyediakan isian stok/nilai stok awal. Data stok historis yang sudah ada tetap dipertahankan; saldo awal customer tetap tersedia.
 - Pemasok tunggal otomatis: tidak perlu mendaftarkan atau memilih pabrik. Relasi pembelian, retur, dan pelunasan ditangani aplikasi.
 - Order customer/pembelian, pemenuhan sebagian melalui transaksi terkait, dan sisa order.
 - Penjualan/pembelian: draf, final, edit langsung dengan perhitungan ulang stok/HPP dan audit, diskon produk (% atau Rp/unit), diskon total tambahan, pencarian, detail, pembatalan dengan alasan.
@@ -68,7 +68,9 @@ Hasil installer berada di `src-tauri\target\release\bundle\nsis\`. Build macOS t
 - Uang muka penjualan dicatat sekaligus sebagai pembayaran teralokasi.
 - Retur penjualan/pembelian yang mengacu transaksi asal, termasuk batas kuantitas dan diskon proporsional.
 - Pelunasan parsial/penuh, alokasi per tagihan, edit pembayaran, serta pembatalan pembayaran.
-- SN memiliki satu kotak per unit untuk Qty bulat; nilainya ikut disimpan pada draf dan dicetak pada invoice.
+- SN dicatat per unit saat Pembelian. Setelah disahkan, SN tersedia untuk dicari/dipilih pada Penjualan; SN yang sudah terjual tidak dapat dipakai lagi sampai diretur. Draf tidak mengunci SN, dan data stok lama tanpa SN tetap didukung. Nomor ikut dicetak pada invoice.
+- Tombol hapus tersedia untuk barang, customer, seluruh order/transaksi/retur, dan pembayaran. Konfirmasi wajib; relasi aktif maupun historis tetap diperiksa. Hapus pembayaran/dokumen turunan terlebih dahulu, dan mutasi stok dimulai dari yang terakhir untuk barang terkait. Penghapusan memperbarui stok, modal, dan saldo.
+- Aplikasi desktop dibuka fullscreen dengan tombol **Keluar** di kanan atas. Konfirmasi keluar mengingatkan perubahan form yang belum disimpan; tombol dinonaktifkan selama penyimpanan.
 - Invoice normal, COPY, atau keduanya; proporsi cetak mengikuti referensi lima barang, logo Mitra Ecobike/Phylion bawaan, garansi lengkap, rekening BCA, SN, serta pemisahan halaman dan dialog cetak/PDF sistem.
 - Garansi, syarat pembayaran, dan negara memiliki teks bawaan untuk seluruh profil toko, dengan reset per bagian; penandatangan kosong mengikuti nama penerbit. Data khusus dan rekening pengguna tetap dipertahankan.
 - Data invoice bawaan bisa diubah melalui Pengaturan; setiap logo mempunyai tombol **Reset ke bawaan** yang mengembalikan potongan logo asli dari contoh. Pratinjau/cetak otomatis memakai **Pengaturan tersimpan**. Pilihan **Profil saat transaksi** menampilkan snapshot lama; **Simpan profil ke dokumen** menyimpan profil terbaru ke snapshot secara eksplisit tanpa mengubah barang, stok, atau pembayaran.
@@ -134,6 +136,8 @@ src/inputs.tsx        Pilihan dengan pencarian dan input angka terformat
 src/numberFormat.ts   Format angka saat mengetik dan parsing nilai
 src/SerialInputs.tsx  Input SN per unit sesuai Qty
 src/serials.ts        Pembacaan SN lama dan teks cetak
+src/serialInventory.ts Pelacakan ketersediaan SN dan validasi mutasi
+src/DesktopActions.tsx Tombol dan konfirmasi keluar desktop
 src/storage.ts        Adapter desktop CSV dan pratinjau browser
 src/csv.ts            Parser/serializer CSV dan angka Indonesia
 src/dataImport.ts     Ekspor lengkap, perencanaan Upsert/Replace dan validasi relasi

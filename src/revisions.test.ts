@@ -81,7 +81,19 @@ function returned(db: DB, id: string, qty = 1) {
   saveDoc(
     db,
     d,
-    [{ ...origin, id: uid(), docId: d.id, refLineId: origin.id, qty }],
+    [
+      {
+        ...origin,
+        id: uid(),
+        docId: d.id,
+        refLineId: origin.id,
+        qty,
+        serials: origin.serials
+          .split(/\r?\n|,/)
+          .slice(0, qty)
+          .join("\n"),
+      },
+    ],
     true,
   );
   return db.documents.find((x) => x.id === d.id)!;
@@ -129,6 +141,9 @@ describe("edit data tanpa pembatalan", () => {
   it("edit penjualan memperbarui nilai retur dan tagihan dengan ID yang sama", () => {
     const { db } = fixture();
     const sale = post(db, "sale", 3, 200);
+    reviseDocument(db, sale, [
+      { ...linesOf(db, sale.id)[0], serials: "SN1\nSN2\nSN3" },
+    ]);
     const back = returned(db, sale.id);
     pay(db, sale.id, 200);
     const oldLine = linesOf(db, sale.id)[0];

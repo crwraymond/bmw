@@ -54,6 +54,7 @@ export interface Settings {
   invoiceTextDefaultsVersion?: number;
 }
 export interface Doc {
+  serialTracking?: string;
   id: string;
   kind: Kind;
   status: Status;
