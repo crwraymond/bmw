@@ -15,14 +15,18 @@ export function DesktopActions({
   closeWindow?: () => Promise<void>;
 }) {
   const [confirm, setConfirm] = useState(false);
-  if (!enabled) return null;
   return (
     <>
       <button
         type="button"
         className="desktop-exit"
         aria-label="Keluar aplikasi"
-        disabled={busy}
+        disabled={busy || !enabled}
+        title={
+          enabled
+            ? "Keluar aplikasi"
+            : "Tersedia di aplikasi desktop Windows. Tutup tab untuk keluar dari pratinjau web."
+        }
         onClick={() => setConfirm(true)}
       >
         <LogOut size={17} />

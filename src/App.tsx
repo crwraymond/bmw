@@ -1,5 +1,5 @@
 import { refreshInvoiceProfile } from "./domain";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
   Boxes,
@@ -46,6 +46,7 @@ import { Reports } from "./Reports";
 import { Settings } from "./Settings";
 import { Invoice } from "./Invoice";
 import { DesktopActions } from "./DesktopActions";
+import { useAppUpdates } from "./AppUpdates";
 import "./App.css";
 import "./theme.css";
 const sections = [
@@ -150,6 +151,26 @@ function App() {
     } | null>(null),
     [reason, setReason] = useState("");
   const notify = (text: string, error = false) => setNotice({ text, error });
+  const updateMaintenance = useCallback(
+    async (action: (revision: number) => Promise<void>) => {
+      if (busyRef.current || !dbRef.current)
+        throw new Error("Tunggu penyimpanan selesai sebelum memasang update.");
+      busyRef.current = true;
+      setBusy(true);
+      try {
+        await action(dbRef.current.revision);
+      } finally {
+        busyRef.current = false;
+        setBusy(false);
+      }
+    },
+    [],
+  );
+  const updates = useAppUpdates(
+    Boolean(db) && !locked && !fatal,
+    updateMaintenance,
+  );
+
   const reload = async () => {
     try {
       const result = await load();
@@ -445,6 +466,14 @@ function App() {
             <strong>{pageTitles[page]}</strong>
           </div>
           <div className="top-status">
+            {updates.next && (
+              <button
+                className="update-available"
+                onClick={() => go("settings")}
+              >
+                Update tersedia
+              </button>
+            )}
             <DesktopActions busy={busy} onError={(s) => notify(s, true)} />
             <button
               type="button"
@@ -578,6 +607,7 @@ function App() {
           )}
           {page === "settings" && (
             <Settings
+              updates={updates}
               db={db}
               path={path}
               commit={commit}

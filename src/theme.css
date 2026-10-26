@@ -319,7 +319,7 @@
   :root[data-theme="dark"] :where(.print-overlay, .access-page) {
     background: #101c25;
   }
-  :root[data-theme="dark"] .empty svg {
+  :root[data-theme="dark"] .empty > svg {
     color: #83a4b4;
   }
   :root[data-theme="dark"] .invoice {

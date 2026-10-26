@@ -37,7 +37,7 @@ Pengguna akhir cukup memasang installer dan membuka aplikasi. Mereka tidak perlu
 
 ## Build Windows lewat GitHub Actions
 
-Workflow `.github/workflows/windows.yml` otomatis berjalan setelah push ke `main` dan juga bisa dijalankan manual:
+Workflow `.github/workflows/windows.yml` otomatis berjalan setelah push ke `main` dan juga bisa dijalankan manual. Setelah signing secrets dikonfigurasi, workflow menghasilkan installer bertanda tangan dan rilis update lengkap:
 
 1. Buka tab **Actions** pada repository.
 2. Pilih **Build Windows installer** → **Run workflow**.
@@ -86,6 +86,14 @@ Detail kebutuhan dan asal referensi: [PROJECT_SPEC.md](PROJECT_SPEC.md). Keputus
 Tombol **Impor CSV** tersedia pada halaman barang, customer, dokumen, dan pembayaran. **Upsert** menambah/memperbarui kode atau nomor yang sama; **Replace** mengganti jenis data yang disertakan dalam file. Pratinjau perubahan harus diperiksa sebelum diterapkan. Untuk seluruh data operasional sekaligus gunakan **Pengaturan → Ekspor semua data (CSV) / Impor data (CSV)**.
 
 Lihat [IMPORT_CSV.md](IMPORT_CSV.md) untuk format, contoh, aturan relasi, dan perbedaan dengan backup lengkap.
+
+## Update aplikasi Windows
+
+Pengaturan menyediakan **Cek update** dan **Pasang update**. Pengecekan saat aplikasi dibuka aktif secara default dan dapat dimatikan; pemasangan memerlukan konfirmasi. Aplikasi membuat backup CSV yang diverifikasi sebelum mengunduh/memasang paket bertanda tangan. Folder data dan identifier aplikasi tetap sama. Kegagalan backup, konflik revisi, atau tanda tangan menghentikan pemasangan.
+
+Repo BMW harus **public saat penerima mengecek dan mengunduh update**. Saat private, aplikasi menampilkan kegagalan akses dan bisa dicoba lagi setelah repo dibuat public. Tidak ada token GitHub yang ditanam di installer. Visibility repo tidak diubah oleh aplikasi atau workflow.
+
+Installer lama yang belum memuat updater harus diperbarui manual sekali. Panduan signing secrets, rilis, backup, dan uji Windows tersedia pada [UPDATE_WINDOWS.md](UPDATE_WINDOWS.md). Di preview browser, Cek update dan Keluar tetap terlihat dalam keadaan nonaktif; gunakan tab browser untuk keluar.
 
 ## Penyimpanan desktop
 

@@ -322,6 +322,18 @@ pub fn backup(root: &Path, destination: &Path) -> Result<String, String> {
     write_generation(&path, &db)?;
     Ok(path.to_string_lossy().to_string())
 }
+// Refuse stale/corrupt snapshots. Installation requires a verified backup.
+pub fn prepare_update(root: &Path, backup_root: &Path, expected: u64) -> Result<String, String> {
+    let current = load(root)?;
+    if current["revision"].as_u64() != Some(expected) {
+        return Err("Data telah berubah. Muat ulang sebelum memasang update.".into());
+    }
+    let destination = backup(root, backup_root)?;
+    if read_generation(Path::new(&destination))? != current {
+        return Err("Verifikasi backup gagal. Update tidak boleh dipasang.".into());
+    }
+    Ok(destination)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,6 +361,25 @@ mod tests {
         write_sync(&latest.join("items.csv"), b"broken").unwrap();
         assert!(load(&p).unwrap_err().contains("Checksum"));
         fs::remove_dir_all(p).unwrap();
+    }
+    #[test]
+    fn update_backup_preserves_data_and_blocks_stale_or_corrupt_store() {
+        let p = root();
+        let dest = root();
+        let mut db = load(&p).unwrap();
+        db["settings"][0]["name"] = json!("Toko pengguna");
+        db["settings"][0]["account"] = json!("0012300");
+        let saved = save(&p, db, 0).unwrap();
+        assert!(prepare_update(&p, &dest, 0).is_err());
+        assert!(!dest.exists());
+        let copy = prepare_update(&p, &dest, 1).unwrap();
+        assert_eq!(read_generation(Path::new(&copy)).unwrap(), saved);
+        assert_eq!(load(&p).unwrap(), saved);
+        let latest = latest(&p).unwrap().unwrap();
+        write_sync(&latest.join("settings.csv"), b"corrupt").unwrap();
+        assert!(prepare_update(&p, &dest, 1).is_err());
+        fs::remove_dir_all(p).unwrap();
+        fs::remove_dir_all(dest).unwrap();
     }
     #[test]
     fn backup_restores_exact_snapshot() {

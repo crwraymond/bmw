@@ -31,7 +31,9 @@ Dokumen ini adalah bahan untuk merancang dan membangun aplikasi, bukan pernyataa
 - Tambahan kebutuhan: jumlah kotak serial number mengikuti Qty barang.
 - SN dimasukkan saat pembelian, lalu tersedia untuk pencarian dan pemilihan saat penjualan. SN yang sudah keluar tidak boleh dijual dua kali; retur penjualan mengembalikannya ke stok.
 - Tombol hapus tersedia pada semua daftar data, dari barang/customer sampai order, transaksi, retur, dan pembayaran. Penghapusan dikonfirmasi dan ditolak jika merusak relasi, stok, atau saldo; data turunan dihapus terlebih dahulu.
-- Aplikasi Windows dibuka fullscreen dan menyediakan tombol Keluar dengan konfirmasi.
+- Aplikasi Windows dibuka fullscreen dan menyediakan tombol Keluar dengan konfirmasi. Di preview web, lokasinya ditampilkan dengan penjelasan bahwa penutupan aplikasi hanya berlaku pada desktop.
+- Pengaturan menyediakan cek update Windows, cek otomatis saat startup, serta konfirmasi pemasangan. Paket harus bertanda tangan dan backup CSV diverifikasi sebelum pemasangan; data toko dipertahankan.
+- Repo BMW tetap dikelola visibility-nya secara manual oleh pengguna. Untuk update tanpa akun/token pada penerima, pengguna membuat repo public saat pengecekan dan pengunduhan rilis.
 - Klarifikasi terbaru pengguna: total modal berarti modal seluruh barang yang pernah dibeli. Dashboard menghitung nilai stok awal + seluruh pembelian final - retur pembelian final untuk semua waktu; penjualan tidak menguranginya. Nilai persediaan tersisa berdasarkan HPP tetap tersedia terpisah dalam laporan.
 - Tema gelap menjadi default, dapat diganti ke tema terang dengan pilihan tersimpan di perangkat. Invoice dan hasil cetak mempertahankan kertas putih serta teks/border hitam.
 - Tombol Lunasi pada halaman Pelunasan ditempatkan pada kolom Aksi.

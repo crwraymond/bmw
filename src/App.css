@@ -641,7 +641,7 @@ a {
   text-align: center;
   color: #91a5ad;
 }
-.empty svg {
+.empty > svg {
   color: #a6babe;
   margin-bottom: 14px;
   stroke-width: 1.4;
@@ -2297,4 +2297,33 @@ select {
   .settings-actions > button {
     flex: 1 1 100%;
   }
+}
+
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.update-panel .check {
+  margin-top: 16px;
+  align-items: flex-start;
+}
+.update-notes {
+  margin: 12px 0;
+  font-size: 12px;
+}
+.update-notes > p {
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.update-panel progress {
+  width: 100%;
+  margin-top: 12px;
+}
+.update-available {
+  font-size: 11px;
+  padding: 6px 10px;
 }

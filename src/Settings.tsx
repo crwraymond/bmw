@@ -1,3 +1,4 @@
+import { UpdatePanel, type AppUpdates } from "./AppUpdates";
 import { defaultLogo, defaultPartnerLogo } from "./branding";
 import { invoiceDefaults } from "./invoiceDefaults";
 import { ImportCSV, ExportAllCSV } from "./ImportCSV";
@@ -18,6 +19,7 @@ import { audit } from "./domain";
 import { type Commit, Field, Table } from "./ui";
 import { desktop, backup } from "./storage";
 export function Settings({
+  updates,
   db,
   path,
   commit,
@@ -26,6 +28,7 @@ export function Settings({
   onError,
   onNotify,
 }: {
+  updates: AppUpdates;
   db: DB;
   path: string;
   commit: Commit;
@@ -357,6 +360,7 @@ export function Settings({
         </section>
       </div>
       <aside>
+        <UpdatePanel updates={updates} busy={busy} />
         <section className="panel settings-panel">
           <div className="section-heading">
             <h3>Penyimpanan & backup</h3>

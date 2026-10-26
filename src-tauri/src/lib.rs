@@ -121,6 +121,37 @@ fn restore_store(
     )
 }
 #[tauri::command]
+fn update_info(app: tauri::AppHandle) -> serde_json::Value {
+    let configured = app
+        .config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|v| v.get("pubkey"))
+        .and_then(|v| v.as_str())
+        .is_some_and(|key| !key.trim().is_empty());
+    serde_json::json!({
+        "version": app.package_info().version.to_string(),
+        "configured": configured,
+        "supported": cfg!(target_os = "windows")
+    })
+}
+#[tauri::command]
+fn prepare_update(
+    app: tauri::AppHandle,
+    lock: tauri::State<StoreLock>,
+    expected_revision: u64,
+) -> Result<String, String> {
+    let _guard = lock.0.lock().map_err(|e| e.to_string())?;
+    gate(&app, &lock)?;
+    let data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    store::prepare_update(
+        &data.join("store"),
+        &data.join("backups").join("before-update"),
+        expected_revision,
+    )
+}
+#[tauri::command]
 fn print_document(window: tauri::WebviewWindow) -> Result<(), String> {
     window.print().map_err(|e| e.to_string())
 }
@@ -134,6 +165,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(StoreLock(Mutex::new(()), Mutex::new(false)))
         .invoke_handler(tauri::generate_handler![
             unlock_store,
@@ -144,7 +176,9 @@ pub fn run() {
             backup_store,
             read_backup,
             restore_store,
-            print_document
+            print_document,
+            update_info,
+            prepare_update
         ])
         .run(tauri::generate_context!())
         .expect("Tidak dapat membuka Toko Offline");

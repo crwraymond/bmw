@@ -4,7 +4,10 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: windows-release
+  cancel-in-progress: false
 jobs:
   windows:
     runs-on: windows-latest
@@ -21,6 +24,11 @@ jobs:
         run: npm ci
       - name: Business rules
         run: npm test
+      - name: Release version tests
+        run: node --test scripts/release.test.mjs
+      - name: Prepare release version
+        id: release
+        run: node scripts/prepare-release.mjs
       - name: Frontend build
         run: npm run build
       - name: Install browser for UI tests
@@ -29,10 +37,47 @@ jobs:
         run: npm run test:e2e
       - name: CSV storage and password tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
-      - name: Build installer
-        run: npm run tauri:build -- --bundles nsis
+      - name: Validate signing configuration
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY -or -not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) {
+            throw "Configure both Tauri signing secrets before publishing updates."
+          }
+      - name: Build signed installer and upload complete draft
+        id: bundle
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ steps.release.outputs.tag }}
+          releaseName: Toko Offline ${{ steps.release.outputs.version }}
+          releaseBody: Pembaruan aplikasi Windows. Data toko disimpan terpisah dari aplikasi dan dicadangkan sebelum pemasangan update.
+          releaseDraft: true
+          prerelease: false
+          args: --bundles nsis
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
+          uploadUpdaterSignatures: true
+      - name: Publish only after all assets are uploaded
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ steps.bundle.outputs.releaseId }}
+        with:
+          script: |
+            const release_id = Number(process.env.RELEASE_ID);
+            if (!release_id) throw new Error('Missing completed release');
+            const { data } = await github.rest.repos.listReleaseAssets({ ...context.repo, release_id, per_page: 100 });
+            if (!data.some(a => a.name === 'latest.json') || !data.some(a => a.name.endsWith('-setup.exe')) || !data.some(a => a.name.endsWith('.sig'))) throw new Error('Incomplete signed update assets');
+            await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: false, make_latest: 'true' });
       - uses: actions/upload-artifact@v4
         with:
           name: toko-offline-windows-x64
-          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/nsis/*.sig
           if-no-files-found: error
