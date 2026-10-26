@@ -28,13 +28,14 @@ import {
   type DB,
   type Doc,
   type Kind,
+  money,
   type Payment,
   emptyDB,
   today,
   labels,
 } from "./types";
 import { cancelDoc, cancelPayment } from "./domain";
-import { deleteDocument } from "./revisions";
+import { deleteDocument, documentPaymentLinks } from "./revisions";
 import { load, persist, desktop, restore } from "./storage";
 import { type Commit, Modal, Field } from "./ui";
 import { Dashboard } from "./Dashboard";
@@ -150,6 +151,12 @@ function App() {
       name: string;
     } | null>(null),
     [reason, setReason] = useState("");
+  const [confirmationError, setConfirmationError] = useState("");
+  const [deletePayments, setDeletePayments] = useState(false);
+  const paymentLinks =
+    db && confirmation?.type === "delete"
+      ? documentPaymentLinks(db, confirmation.id)
+      : [];
   const notify = (text: string, error = false) => setNotice({ text, error });
   const updateMaintenance = useCallback(
     async (action: (revision: number) => Promise<void>) => {
@@ -198,9 +205,10 @@ function App() {
     const timer = setTimeout(() => setNotice(null), 4500);
     return () => clearTimeout(timer);
   }, [notice]);
-  const commit: Commit = async (change, message = "Tersimpan") => {
+  const commit: Commit = async (change, message = "Tersimpan", onError) => {
     if (busyRef.current || !dbRef.current) {
-      notify("Tunggu penyimpanan sebelumnya selesai.", true);
+      if (onError) onError("Tunggu penyimpanan sebelumnya selesai.");
+      else notify("Tunggu penyimpanan sebelumnya selesai.", true);
       return false;
     }
     busyRef.current = true;
@@ -214,7 +222,9 @@ function App() {
       notify(message);
       return true;
     } catch (e) {
-      notify(String(e instanceof Error ? e.message : e), true);
+      const error = String(e instanceof Error ? e.message : e);
+      if (onError) onError(error);
+      else notify(error, true);
       return false;
     } finally {
       busyRef.current = false;
@@ -237,6 +247,9 @@ function App() {
     name: string,
   ) => {
     setReason("");
+    setConfirmationError("");
+    setDeletePayments(false);
+    setNotice(null);
     setConfirmation({ type, id, name });
   };
   const performRestore = async () => {
@@ -267,13 +280,15 @@ function App() {
       return;
     }
     const c = confirmation;
+    setConfirmationError("");
     const ok = await commit(
       (d) => {
         if (c.type === "doc") cancelDoc(d, c.id, reason);
         else if (c.type === "payment") cancelPayment(d, c.id, reason);
-        else deleteDocument(d, c.id);
+        else deleteDocument(d, c.id, deletePayments);
       },
       c.type === "delete" ? "Dokumen dihapus" : "Pembatalan tersimpan",
+      setConfirmationError,
     );
     if (ok) {
       setConfirmation(null);
@@ -672,9 +687,61 @@ function App() {
                 {confirmation.type === "restore"
                   ? "Data aktif akan diganti oleh backup yang kamu pilih. Pada desktop, data aktif dicadangkan terlebih dahulu."
                   : confirmation.type === "delete"
-                    ? `${confirmation.name}. Dokumen beserta detailnya akan dihapus. Hapus pembayaran dan dokumen turunan terlebih dahulu jika masih terhubung.`
+                    ? `${confirmation.name}. Dokumen beserta detailnya akan dihapus. Dokumen turunan seperti retur harus dihapus terlebih dahulu jika masih terhubung.`
                     : `${confirmation.name}. Perubahan stok dan saldo akan dihitung ulang sesuai aturan pembatalan.`}
               </p>
+              {paymentLinks.length > 0 && (
+                <div className="delete-payment-links">
+                  <p>
+                    <strong>{paymentLinks.length} pembayaran terkait:</strong>
+                  </p>
+                  <ul>
+                    {paymentLinks.map(({ payment, exclusive }) => (
+                      <li key={payment.id}>
+                        {payment.number} · {money(payment.amount)}
+                        {exclusive
+                          ? ""
+                          : " · juga dipakai tagihan lain / saldo awal"}
+                      </li>
+                    ))}
+                  </ul>
+                  {paymentLinks.every((link) => link.exclusive) ? (
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={deletePayments}
+                        disabled={busy}
+                        onChange={(e) => {
+                          setDeletePayments(e.target.checked);
+                          setConfirmationError("");
+                        }}
+                      />
+                      Hapus juga pembayaran khusus dokumen ini
+                    </label>
+                  ) : (
+                    <p>
+                      Pembayaran gabungan harus diubah melalui Pelunasan
+                      terlebih dahulu.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setConfirmation(null);
+                      setDetail(null);
+                      go("payments");
+                    }}
+                  >
+                    Buka Pelunasan
+                  </button>
+                </div>
+              )}
+              {confirmationError && (
+                <p className="stock-error" role="alert">
+                  {confirmationError}
+                </p>
+              )}
               {["doc", "payment"].includes(confirmation.type) && (
                 <Field label="Alasan pembatalan">
                   <textarea

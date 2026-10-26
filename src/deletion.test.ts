@@ -167,3 +167,100 @@ describe("hapus data dengan validasi relasi", () => {
     validateDB(db);
   });
 });
+
+describe("penghapusan pembayaran khusus invoice dengan persetujuan eksplisit", () => {
+  it("menghapus DP dan pembayaran khusus invoice bersama dokumen serta memperbarui stok", () => {
+    const { db, item, post } = fixture();
+    post("purchase", 3);
+    const sale = post("sale", 1, "", 50);
+    savePayment(
+      db,
+      {
+        id: uid(),
+        number: "PAY-EXTRA",
+        date: sale.date,
+        partyId: sale.partyId,
+        direction: "in",
+        amount: 50,
+        notes: "",
+        status: "final",
+      },
+      [{ docId: sale.id, amount: 50 }],
+    );
+    const before = structuredClone(db);
+    expect(() => deleteDocument(db, sale.id)).toThrow(/pembayaran terkait/);
+    expect(db).toEqual(before);
+    deleteDocument(db, sale.id, true);
+    expect(db.payments).toEqual([]);
+    expect(db.allocations).toEqual([]);
+    expect(db.documents.some((d) => d.id === sale.id)).toBe(false);
+    expect(stock(db, item.id).qty).toBe(3);
+    expect(
+      db.audit.filter((a) => a.action === "Hapus pembayaran"),
+    ).toHaveLength(2);
+    validateDB(db);
+  });
+  it("menolak pembayaran yang juga melunasi invoice lain secara atomik", () => {
+    const { db, post } = fixture();
+    post("purchase", 3);
+    const first = post("sale"),
+      second = post("sale");
+    savePayment(
+      db,
+      {
+        id: uid(),
+        number: "PAY-SPLIT",
+        date: first.date,
+        partyId: first.partyId,
+        direction: "in",
+        amount: 100,
+        notes: "",
+        status: "final",
+      },
+      [
+        { docId: first.id, amount: 50 },
+        { docId: second.id, amount: 50 },
+      ],
+    );
+    const before = structuredClone(db);
+    expect(() => deleteDocument(db, first.id, true)).toThrow(/tagihan lain/);
+    expect(db).toEqual(before);
+  });
+  it("menolak pembayaran yang sebagian dipakai untuk saldo awal", () => {
+    const { db, post } = fixture();
+    post("purchase", 3);
+    const sale = post("sale");
+    db.parties.find((p) => p.id === sale.partyId)!.openingBalance = 50;
+    savePayment(
+      db,
+      {
+        id: uid(),
+        number: "PAY-OPENING",
+        date: sale.date,
+        partyId: sale.partyId,
+        direction: "in",
+        amount: 100,
+        notes: "",
+        status: "final",
+      },
+      [{ docId: sale.id, amount: 50 }],
+    );
+    const before = structuredClone(db);
+    expect(() => deleteDocument(db, sale.id, true)).toThrow(/saldo awal/);
+    expect(db).toEqual(before);
+  });
+  it("tidak menghapus pembayaran jika invoice masih dirujuk retur atau mutasi sesudahnya", () => {
+    const { db, post } = fixture();
+    post("purchase", 4);
+    const sale = post("sale", 2, "", 50);
+    const back = post("sale_return", 1, sale.id);
+    let before = structuredClone(db);
+    expect(() => deleteDocument(db, sale.id, true)).toThrow(/turunan/);
+    expect(db).toEqual(before);
+    deleteDocument(db, back.id);
+    post("sale");
+    before = structuredClone(db);
+    expect(() => deleteDocument(db, sale.id, true)).toThrow(/mutasi/);
+    expect(db).toEqual(before);
+  });
+});

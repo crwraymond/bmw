@@ -277,11 +277,12 @@ export function Payments({
           name={`pembayaran ${deleting.number} (${money(deleting.amount)})`}
           busy={busy}
           onClose={() => setDeleting(null)}
-          onConfirm={async () => {
+          onConfirm={async (reportError) => {
             if (
               await commit(
                 (d) => deletePayment(d, deleting.id),
                 "Pembayaran dihapus",
+                reportError,
               )
             )
               setDeleting(null);

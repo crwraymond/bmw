@@ -2327,3 +2327,21 @@ select {
   font-size: 11px;
   padding: 6px 10px;
 }
+
+.delete-payment-links {
+  margin: 16px 0;
+}
+.delete-payment-links ul {
+  margin: 8px 0 14px;
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
+.delete-payment-links .check {
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.confirm-body .stock-error {
+  display: block;
+  margin-top: 14px;
+  white-space: normal;
+}

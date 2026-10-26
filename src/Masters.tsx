@@ -216,11 +216,12 @@ export function Masters({
           name={`${items ? "barang" : "customer"} ${deleting.code} — ${deleting.name}`}
           busy={busy}
           onClose={() => setDeleting(null)}
-          onConfirm={async () => {
+          onConfirm={async (reportError) => {
             if (
               await commit(
                 (d) => deleteMaster(d, kind, deleting.id),
                 "Data dihapus",
+                reportError,
               )
             )
               setDeleting(null);

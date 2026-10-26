@@ -1,6 +1,7 @@
 import {
   useEffect,
   useRef,
+  useState,
   useId,
   Children,
   cloneElement,
@@ -13,6 +14,7 @@ import type { DB } from "./types";
 export type Commit = (
   change: (db: DB) => void,
   message?: string,
+  onError?: (message: string) => void,
 ) => Promise<boolean>;
 export function Field({
   label,
@@ -187,14 +189,16 @@ export function DeleteConfirm({
   name: string;
   busy: boolean;
   onClose: () => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: (reportError: (message: string) => void) => Promise<void>;
 }) {
+  const [error, setError] = useState("");
   return (
     <Modal title="Hapus data?" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void onConfirm();
+          setError("");
+          void onConfirm(setError);
         }}
       >
         <div className="confirm-body">
@@ -203,6 +207,11 @@ export function DeleteConfirm({
             yang masih terhubung dengan transaksi lain harus diselesaikan atau
             dihapus lebih dahulu.
           </p>
+          {error && (
+            <p className="stock-error" role="alert">
+              {error}
+            </p>
+          )}
         </div>
         <footer className="modal-footer">
           <button type="button" disabled={busy} onClick={onClose}>

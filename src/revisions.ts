@@ -364,7 +364,27 @@ export function deleteMaster(db: DB, kind: "items" | "customer", id: string) {
     audit(db, "Hapus customer", party.code, party.name);
   }
 }
-export function deleteDocument(db: DB, id: string) {
+export function documentPaymentLinks(db: DB, docId: string) {
+  return db.payments
+    .filter(
+      (p) =>
+        p.sourceDocId === docId ||
+        db.allocations.some((a) => a.paymentId === p.id && a.docId === docId),
+    )
+    .map((payment) => {
+      const allocations = db.allocations.filter(
+        (a) => a.paymentId === payment.id,
+      );
+      return {
+        payment,
+        exclusive:
+          (!payment.sourceDocId || payment.sourceDocId === docId) &&
+          allocations.every((a) => a.docId === docId) &&
+          allocations.reduce((sum, a) => sum + a.amount, 0) === payment.amount,
+      };
+    });
+}
+export function deleteDocument(db: DB, id: string, includePayments = false) {
   const work = structuredClone(db),
     doc = work.documents.find((d) => d.id === id);
   requireValue(doc, "Dokumen tidak ditemukan.");
@@ -372,11 +392,17 @@ export function deleteDocument(db: DB, id: string) {
     !work.documents.some((d) => d.refId === id || d.orderId === id),
     "Dokumen masih dirujuk order/retur/transaksi lain. Hapus dokumen turunan terlebih dahulu.",
   );
+  const links = documentPaymentLinks(work, id);
   requireValue(
-    !work.allocations.some((a) => a.docId === id) &&
-      !work.payments.some((p) => p.sourceDocId === id),
-    "Dokumen masih memiliki pembayaran terkait. Hapus pembayaran tersebut terlebih dahulu.",
+    links.every((link) => link.exclusive),
+    "Pembayaran terkait juga mencakup tagihan lain atau saldo awal. Ubah alokasinya lewat Pelunasan terlebih dahulu.",
   );
+  requireValue(
+    !links.length || includePayments,
+    "Dokumen masih memiliki pembayaran terkait. Centang pilihan hapus pembayaran khusus dokumen ini, atau hapus pembayaran lewat Pelunasan terlebih dahulu.",
+  );
+  if (includePayments)
+    for (const { payment } of links) deletePayment(work, payment.id);
   if (doc.status === "final") cancelDoc(work, id, "Hapus dokumen salah input");
   work.documents = work.documents.filter((d) => d.id !== id);
   work.lines = work.lines.filter((l) => l.docId !== id);
