@@ -211,3 +211,10 @@ CSS cetak dibatasi menurut jenis laporan: stok lebih padat, daftar customer mema
 Comparator kode bersama memakai locale Indonesia, perbandingan angka natural, dan pengabaian kapital. Sorting dilakukan pada array hasil filter agar urutan data tersimpan tidak berubah. Tombol cetak invoice/COPY di tabel hanya tersedia untuk penjualan final dan membuka preview dokumen yang dipilih tanpa membuat transaksi/pembayaran baru. Tombol Minimize menggunakan API window Tauri dengan izin `core:window:allow-minimize`; kontrol desktop tetap nonaktif pada browser.
 
 Verifikasi sebelum push: 94 tes unit, 49 tes browser, 3 tes versi rilis, TypeScript, pemeriksaan format, dan diff whitespace lolos. Pemeriksaan browser terisolasi tambahan memverifikasi layout laporan, jarak metadata penerbit pada media screen/print, urutan kode di tabel/dropdown/laporan/CSV, serta cetak normal/COPY dari dua baris penjualan yang berbeda. Tidak membuat build lokal; perilaku native minimize masih memerlukan smoke test Windows.
+
+
+## Invoice mengikuti pelunasan dan pembayaran terbaru
+
+Reproduksi tombol Lunasi pada invoice Rp1.000 dengan DP Rp200 masih mencetak Rp800. Penyebabnya adalah footer hanya menghitung `doc.total - doc.downPayment`, sedangkan pelunasan disimpan pada pembayaran/alokasi terpisah. Footer sekarang memakai pembayaran final teralokasi dan retur aktif; DP diklasifikasikan dari pembayaran DP yang masih final, lalu pembayaran lainnya ditampilkan terpisah. Sisa dihitung satu kali dari total invoice dikurangi seluruh pembayaran dan retur. Status Lunas/Belum lunas dicetak pada kedua varian; kelebihan pembayaran akibat retur tampil sebagai saldo kredit dan sisa nol. Snapshot penerbit tetap mengikuti pilihan profil.
+
+Verifikasi: 25 tes browser terkait invoice/alur operasional lolos, termasuk empat regresi untuk pelunasan tanpa/dengan DP, cicilan yang diedit/dibatalkan (termasuk DP batal), serta retur setelah lunas. Pembukaan preview normal/COPY tidak mengubah penyimpanan data. TypeScript dan format file terkait lolos. Tidak build atau push.

@@ -740,3 +740,8 @@ Pengguna membatasi perubahan penghapusan hanya pada customer. Hapus customer cuk
 Laporan stok dicetak dengan baris lebih padat. Cetakan daftar customer memakai kolom kode/kota lebih kecil, alamat lebih lebar, tanpa kolom fax. Daftar customer/barang, pilihan transaksi, laporan, dan CSV master diurutkan berdasarkan kode A–Z secara natural (B2 sebelum B10).
 
 Invoice menampilkan total transaksi, DP sebagai pengurang, dan Grand Total sebagai sisa pembayaran tanpa mengubah nilai transaksi dalam laporan. DP tidak diulang pada Terms of Payment. Area garansi mengikuti tinggi konten tanpa ruang kosong besar; label telepon penerbit ditulis lengkap dan memiliki jarak antarblok. Tombol Cetak invoice/Cetak COPY tersedia langsung di kolom Aksi penjualan final. Tombol Minimize ditambahkan di samping Keluar untuk aplikasi desktop; preview browser menampilkannya nonaktif.
+
+
+## Status pembayaran terbaru pada invoice
+
+Invoice normal dan COPY harus menghitung sisa pembayaran dari pembayaran final yang dialokasikan ke invoice dan retur yang masih berlaku, bukan hanya DP pada header transaksi. Pelunasan menampilkan status Lunas dan sisa Rp0; cicilan, revisi, dan pembatalan pembayaran harus langsung tercermin saat preview dibuka kembali. DP tidak boleh dikurangi dua kali dan DP yang sudah dibatalkan tidak boleh dianggap sudah dibayar. Retur setelah lunas ditampilkan sebagai saldo kredit dengan sisa tagihan nol. Nilai transaksi dalam laporan tidak berubah karena pencetakan.

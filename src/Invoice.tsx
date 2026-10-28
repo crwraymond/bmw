@@ -3,7 +3,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Printer, X, RefreshCw } from "lucide-react";
 import { type DB, type Doc, type Line, money, qty } from "./types";
 import { displayNumber } from "./numberFormat";
-import { linesOf, lineDiscount, lineNet } from "./domain";
+import { linesOf, lineDiscount, lineNet, paid, returnedValue } from "./domain";
+import { downPaymentFor } from "./revisions";
 import { printDocument } from "./storage";
 import { serialText } from "./serials";
 function InvoiceMoney({ value }: { value: number }) {
@@ -71,6 +72,12 @@ function InvoicePages({
   const [overflow, setOverflow] = useState(false);
   const refs = useRef<(HTMLElement | null)[]>([]);
   const variants = mode === "both" ? [false, true] : [mode === "copy"];
+  const totalPaid = paid(db, doc.id);
+  const downPayment = downPaymentFor(db, doc)?.amount || 0;
+  const otherPayments = totalPaid - downPayment;
+  const returns = returnedValue(db, doc.id);
+  const remaining = doc.total - returns - totalPaid;
+  const hasDeductions = totalPaid > 0 || returns > 0;
   useLayoutEffect(() => {
     const index = sheets.findIndex(
       (_, i) => (refs.current[i]?.getBoundingClientRect().height || 0) > 1015,
@@ -292,34 +299,56 @@ function InvoicePages({
                           </td>
                         </tr>
                       )}
-                      {doc.downPayment > 0 && (
-                        <>
-                          <tr>
-                            <td colSpan={5}>Total Invoice</td>
-                            <td>
-                              <InvoiceMoney value={doc.total} />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td colSpan={5}>Down Payment (DP)</td>
-                            <td>
-                              <InvoiceMoney value={-doc.downPayment} />
-                            </td>
-                          </tr>
-                        </>
+                      {hasDeductions && (
+                        <tr>
+                          <td colSpan={5}>Total Invoice</td>
+                          <td>
+                            <InvoiceMoney value={doc.total} />
+                          </td>
+                        </tr>
+                      )}
+                      {downPayment > 0 && (
+                        <tr>
+                          <td colSpan={5}>Down Payment (DP)</td>
+                          <td>
+                            <InvoiceMoney value={-downPayment} />
+                          </td>
+                        </tr>
+                      )}
+                      {otherPayments > 0 && (
+                        <tr>
+                          <td colSpan={5}>Pembayaran lainnya</td>
+                          <td>
+                            <InvoiceMoney value={-otherPayments} />
+                          </td>
+                        </tr>
+                      )}
+                      {returns > 0 && (
+                        <tr>
+                          <td colSpan={5}>Retur</td>
+                          <td>
+                            <InvoiceMoney value={-returns} />
+                          </td>
+                        </tr>
+                      )}
+                      {remaining < 0 && (
+                        <tr>
+                          <td colSpan={5}>Saldo kredit</td>
+                          <td>
+                            <InvoiceMoney value={-remaining} />
+                          </td>
+                        </tr>
                       )}
                       <tr>
                         <td colSpan={5}>
                           <b>
                             Grand Total
-                            {doc.downPayment > 0 && " (Sisa pembayaran)"}
+                            {hasDeductions && " (Sisa pembayaran)"}
                           </b>
                         </td>
                         <td>
                           <b>
-                            <InvoiceMoney
-                              value={doc.total - (doc.downPayment || 0)}
-                            />
+                            <InvoiceMoney value={Math.max(0, remaining)} />
                           </b>
                         </td>
                       </tr>
@@ -330,6 +359,11 @@ function InvoicePages({
               {sheet.summary && (
                 <section className="invoice-terms">
                   <b>Terms of Payment:</b> {doc.terms || "—"}
+                  <div className="invoice-payment-status">
+                    Status pembayaran:{" "}
+                    <b>{remaining > 0 ? "Belum lunas" : "Lunas"}</b>
+                    {remaining < 0 && " · Memiliki saldo kredit"}
+                  </div>
                 </section>
               )}
               {sheet.warranty && (
