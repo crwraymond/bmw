@@ -546,3 +546,29 @@ describe("complete CSV import", () => {
     ).toThrow(/angka/);
   });
 });
+
+it.each<ImportMode>(["upsert", "replace"])(
+  "ekspor/impor semua data menjaga customer terhapus dan riwayatnya (%s)",
+  async (mode) => {
+    const { deleteMaster } = await import("./revisions");
+    const original = ledger();
+    const customer = original.parties.find((p) => p.kind === "customer")!;
+    deleteMaster(original, "customer", customer.id);
+    const before = figures(original);
+    for (const current of [original, withStoreDefaults(emptyDB())]) {
+      const restored = prepareImport(
+        current,
+        splitAllCSV(exportAllCSV(original)),
+        mode,
+      ).db;
+      expect(
+        restored.parties.find(
+          (p) => p.kind === "customer" && p.code === customer.code,
+        ),
+      ).toMatchObject({ deleted: true, active: false });
+      expect(figures(restored)).toEqual(before);
+      expect(restored.documents).toHaveLength(original.documents.length);
+      expect(restored.payments).toHaveLength(original.payments.length);
+    }
+  },
+);

@@ -33,6 +33,13 @@ test("ikon tombol tambah konsisten pada kedua tema dan lokasi tombol keluar jela
   await expect(exit).toBeVisible();
   await expect(exit).toBeDisabled();
   await expect(exit).toHaveAttribute("title", /desktop Windows/);
+  const minimize = page.getByRole("button", {
+    name: "Minimalkan aplikasi",
+    exact: true,
+  });
+  await expect(minimize).toBeVisible();
+  await expect(minimize).toBeDisabled();
+  await expect(minimize).toHaveAttribute("title", /desktop Windows/);
   await page
     .locator("nav")
     .getByRole("button", { name: "Pengaturan", exact: true })

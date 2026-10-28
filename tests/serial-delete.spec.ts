@@ -290,6 +290,14 @@ test("tombol keluar desktop meminta konfirmasi dan tidak menutup saat penyimpana
   await page.evaluate(async () => {
     await import("/tests/fixtures/DesktopActionsHarness.tsx");
   });
+  const minimize = page.getByRole("button", {
+    name: "Minimalkan aplikasi",
+    exact: true,
+  });
+  await minimize.click();
+  expect(await page.evaluate(() => (window as any).minimizeCalls)).toBe(1);
+  expect(await page.evaluate(() => (window as any).exitCalls)).toBe(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Keluar aplikasi", exact: true })
     .click();
@@ -305,6 +313,7 @@ test("tombol keluar desktop meminta konfirmasi dan tidak menutup saat penyimpana
   expect(await page.evaluate(() => (window as any).exitCalls)).toBe(1);
   await f.getByRole("button", { name: "Kembali", exact: true }).click();
   await page.evaluate(() => (window as any).renderExit(true));
+  await expect(minimize).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Keluar aplikasi", exact: true }),
   ).toBeDisabled();

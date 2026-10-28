@@ -600,6 +600,7 @@ function App() {
               busy={busy}
               onView={setDetail}
               onDelete={(d) => ask("delete", d.id, d.number)}
+              onPrint={(doc, mode) => setPrint({ doc, mode })}
               openNew={newKind === docKind}
               onOpened={() => setNewKind(null)}
             />

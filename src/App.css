@@ -971,7 +971,13 @@ td input {
   white-space: normal;
   margin-top: 7px;
 }
-.desktop-exit {
+.desktop-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.desktop-exit,
+.desktop-minimize {
   padding: 5px 9px;
   min-height: 32px;
   font-size: 11px;
@@ -1327,7 +1333,7 @@ td input {
   background: white;
   color: #000;
   width: 190mm;
-  min-height: 255mm;
+  min-height: 0;
   padding: 0;
   border: 1px solid #000;
   box-shadow: 0 3px 20px #28445420;
@@ -1395,9 +1401,12 @@ td input {
   border-bottom: 1px solid #000;
 }
 .invoice-meta > section {
-  padding: 0 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 5px 8px;
   white-space: pre-wrap;
-  line-height: 5.9mm;
+  line-height: 1.4;
   min-width: 0;
 }
 .invoice-meta > section:first-child {
@@ -1412,8 +1421,7 @@ td input {
 }
 .invoice-meta p {
   margin: 0;
-  line-height: 1.55;
-  min-height: 5.9mm;
+  line-height: inherit;
 }
 .invoice-account {
   border-bottom: 1px solid #000;
@@ -1522,7 +1530,6 @@ td input {
   white-space: pre-wrap;
 }
 .invoice-warranty {
-  min-height: 51.7mm;
   padding: 4.5mm 3px 3mm;
   border-bottom: 1px solid #000;
   font-size: 12px;
@@ -1756,6 +1763,9 @@ td input {
   .top-status {
     font-size: 10px;
   }
+  .desktop-window-actions button span {
+    display: none;
+  }
   .avatar {
     margin-left: 4px;
   }
@@ -1891,7 +1901,7 @@ td input {
     box-shadow: none;
     width: 190mm;
     max-width: 100%;
-    min-height: 255mm;
+    min-height: 0;
     padding: 0;
     break-after: page;
   }
@@ -1933,6 +1943,41 @@ td input {
   }
   .report-section .wrap {
     max-width: none;
+  }
+  .report-section[data-report="stock"] :is(th, td) {
+    padding: 3px 6px;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+  .report-section[data-report="stock"] .wrap {
+    min-width: 0;
+  }
+  .report-section[data-report="customers"] table {
+    table-layout: fixed;
+  }
+  .report-section[data-report="customers"] :is(th, td) {
+    padding: 6px;
+    min-width: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .report-section[data-report="customers"] :is(th, td):nth-child(1) {
+    width: 7%;
+  }
+  .report-section[data-report="customers"] :is(th, td):nth-child(2) {
+    width: 23%;
+  }
+  .report-section[data-report="customers"] :is(th, td):nth-child(3) {
+    width: 43%;
+  }
+  .report-section[data-report="customers"] :is(th, td):nth-child(4) {
+    width: 10%;
+  }
+  .report-section[data-report="customers"] :is(th, td):nth-child(5) {
+    width: 17%;
+  }
+  .report-section[data-report="customers"] :is(th, td):nth-child(6) {
+    display: none;
   }
 
   * {
@@ -2056,16 +2101,16 @@ select {
   flex-shrink: 0;
 }
 .invoice-warranty {
-  flex: 1 0 auto;
+  flex: 0 0 auto;
 }
 .invoice-footer {
-  margin-top: auto;
+  margin-top: 0;
 }
 @media print {
   .invoice {
     width: 190mm;
     max-width: 100%;
-    min-height: 255mm;
+    min-height: 0;
   }
 }
 

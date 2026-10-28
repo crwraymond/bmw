@@ -234,18 +234,20 @@ test("invoice memakai proporsi referensi lima barang, normal dan COPY", async ({
         box = (s: string) => el.querySelector(s)!.getBoundingClientRect();
       return {
         logo: box(".invoice-brand img").width / frame.width,
-        tableTop: (box(".invoice-table").top - frame.top) / frame.height,
-        bankTop: (box(".invoice-bank").top - frame.top) / frame.height,
+        tableTop: (box(".invoice-table").top - frame.top) / frame.width,
+        warrantyGap: box(".invoice-bank").top - box(".warranty-text").bottom,
         signatureTop:
-          (box(".invoice-signature").top - frame.top) / frame.height,
+          (box(".invoice-signature").top - box(".invoice-bank").top) /
+          frame.width,
         width: frame.width,
         height: frame.height,
       };
     });
     expect(dimensions.logo).toBeCloseTo(166 / 551, 1);
-    expect(Math.abs(dimensions.tableTop - 279 / 741)).toBeLessThan(0.025);
-    expect(Math.abs(dimensions.bankTop - 572 / 741)).toBeLessThan(0.035);
-    expect(Math.abs(dimensions.signatureTop - 660 / 741)).toBeLessThan(0.025);
+    expect(Math.abs(dimensions.tableTop - 279 / 551)).toBeLessThan(0.035);
+    expect(dimensions.warrantyGap).toBeGreaterThanOrEqual(0);
+    expect(dimensions.warrantyGap).toBeLessThan(16);
+    expect(Math.abs(dimensions.signatureTop - 88 / 551)).toBeLessThan(0.025);
     expect(dimensions.height).toBeLessThanOrEqual(1015);
   }
   const stamp = await copy.locator(".copy-stamp").boundingBox(),
@@ -1053,3 +1055,86 @@ test("profil BMW lama mendapat default garansi dan teks lain dengan reset terpis
   await expect(page.locator(".invoice-bank")).toContainText("6041588001");
   await expect(page.locator(".invoice-meta")).toContainText("BMW");
 });
+
+for (const dp of [0, 200000, 1000000]) {
+  test(`invoice mengurangi DP ${dp} satu kali pada Grand Total tanpa mengubah nilai penjualan`, async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.evaluate(async (downPayment) => {
+      const d = await import("/src/domain.ts");
+      const db = JSON.parse(localStorage.getItem("toko-offline-preview-v1")!);
+      const sale = d.newDoc(db, "sale");
+      sale.partyId = db.parties.find(
+        (p: { kind: string }) => p.kind === "customer",
+      ).id;
+      sale.discount = 450000;
+      sale.downPayment = downPayment;
+      d.saveDoc(
+        db,
+        sale,
+        [
+          {
+            ...d.newLine(db, sale.id, db.items[0].id, "sale"),
+            qty: 1,
+            price: 1450000,
+          },
+        ],
+        true,
+      );
+      localStorage.setItem("toko-offline-preview-v1", JSON.stringify(db));
+    }, dp);
+    await page.reload();
+    const before = await page.evaluate(() =>
+      localStorage.getItem("toko-offline-preview-v1"),
+    );
+    await page
+      .locator("nav")
+      .getByRole("button", { name: "Penjualan", exact: true })
+      .click();
+    await page.getByTitle("Lihat detail").click();
+    await page
+      .getByRole("button", { name: "Cetak keduanya", exact: true })
+      .click();
+    await expect(page.locator(".invoice")).toHaveCount(2);
+    for (const sheet of await page.locator(".invoice").all()) {
+      const footer = sheet.locator("tfoot");
+      await expect(footer.locator("tr").last()).toContainText("Grand Total");
+      await expect(footer.locator("tr").last().locator("td").last()).toHaveText(
+        `Rp${(1000000 - dp).toLocaleString("id-ID")}`,
+      );
+      const downPayment = footer
+        .getByRole("row")
+        .filter({ hasText: "Down Payment (DP)" });
+      if (dp) {
+        await expect(
+          footer
+            .getByRole("row")
+            .filter({ hasText: "Total Invoice" })
+            .locator("td")
+            .last(),
+        ).toHaveText("Rp1.000.000");
+        await expect(downPayment.locator("td").last()).toHaveText(
+          `Rp-${dp.toLocaleString("id-ID")}`,
+        );
+        await expect(footer.locator("tr").last()).toContainText(
+          "Sisa pembayaran",
+        );
+      } else await expect(downPayment).toHaveCount(0);
+    }
+    expect(
+      await page.evaluate(() =>
+        localStorage.getItem("toko-offline-preview-v1"),
+      ),
+    ).toBe(before);
+    const totals = await page.evaluate(async () => {
+      const d = await import("/src/domain.ts");
+      const db = JSON.parse(localStorage.getItem("toko-offline-preview-v1")!);
+      const sale = db.documents.find(
+        (doc: { kind: string }) => doc.kind === "sale",
+      );
+      return { total: sale.total, due: d.due(db, sale.id) };
+    });
+    expect(totals).toEqual({ total: 1000000, due: 1000000 - dp });
+  });
+}

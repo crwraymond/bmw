@@ -579,3 +579,77 @@ describe("stok melalui pembelian pada katalog interaktif", () => {
     validateDB(db);
   });
 });
+
+describe("hapus customer tanpa menghapus riwayat", () => {
+  it("mempertahankan order, penjualan, retur, pembayaran, stok, saldo, dan invoice", async () => {
+    const { deleteMaster } = await import("./revisions");
+    const { db, customer, item } = fixture();
+    post(db, "customer_order", 2);
+    const sale = post(db, "sale", 2, 200, 50);
+    returned(db, sale.id);
+    const before = structuredClone(db);
+    const figures = {
+      stock: stock(db, item.id),
+      balance: balance(db, customer.id),
+      paid: paid(db, sale.id),
+      due: due(db, sale.id),
+      metrics: metrics(db, "2000-01-01", "9999-12-31"),
+    };
+    deleteMaster(db, "customer", customer.id);
+    expect(db.parties.find((p) => p.id === customer.id)).toMatchObject({
+      deleted: true,
+      active: false,
+      name: customer.name,
+    });
+    for (const key of [
+      "documents",
+      "lines",
+      "payments",
+      "allocations",
+      "items",
+    ] as const)
+      expect(db[key]).toEqual(before[key]);
+    expect({
+      stock: stock(db, item.id),
+      balance: balance(db, customer.id),
+      paid: paid(db, sale.id),
+      due: due(db, sale.id),
+      metrics: metrics(db, "2000-01-01", "9999-12-31"),
+    }).toEqual(figures);
+    expect(() => validateDB(db)).not.toThrow();
+    const fresh = newDoc(db, "sale");
+    fresh.partyId = customer.id;
+    expect(() =>
+      saveDoc(db, fresh, [newLine(db, fresh.id, item.id, "sale")], true),
+    ).toThrow(/aktif/);
+  });
+  it("tagihan lama masih bisa dilunasi setelah customer dihapus", async () => {
+    const { deleteMaster } = await import("./revisions");
+    const { settleInvoice } = await import("./domain");
+    const { db, customer } = fixture();
+    const sale = post(db, "sale", 2, 200, 50);
+    deleteMaster(db, "customer", customer.id);
+    settleInvoice(db, sale.id);
+    expect(due(db, sale.id)).toBe(0);
+    expect(db.documents.find((d) => d.id === sale.id)?.total).toBe(400);
+    expect(db.parties.find((p) => p.id === customer.id)).toMatchObject({
+      deleted: true,
+      active: false,
+    });
+    expect(() => validateDB(db)).not.toThrow();
+  });
+  it("data lama dan customer baru mendapat flag boolean konsisten untuk CSV desktop", () => {
+    const { db } = fixture();
+    db.parties[0].deleted = true;
+    const normalized = withStoreDefaults(db);
+    expect(
+      normalized.parties.every((p) => typeof p.deleted === "boolean"),
+    ).toBe(true);
+    expect(
+      normalized.parties.find((p) => p.id === db.parties[0].id),
+    ).toMatchObject({ deleted: true, active: false });
+    expect(withStoreDefaults(JSON.parse(JSON.stringify(normalized)))).toEqual(
+      normalized,
+    );
+  });
+});

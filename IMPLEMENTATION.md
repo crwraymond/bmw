@@ -193,3 +193,21 @@ Verifikasi perbaikan: regresi awal gagal karena alert tidak ditemukan di dalam d
 ## Kompatibilitas akhir baris skrip rilis Windows
 
 Workflow run 7/8 berhenti pada tes versi karena regex versi Cargo hanya menerima LF, sedangkan checkout Windows menghasilkan CRLF. Reproduksi lokal dengan fixture CRLF menghasilkan error identik `Desktop package version was not found`. Regex untuk Cargo.toml dan Cargo.lock sekarang menerima LF maupun CRLF sambil mempertahankan akhir baris asli. Tiga tes versi/rilis lolos, termasuk regresi Windows CRLF; pengaturan signature, backup, dan data toko tidak berubah.
+
+
+## Hapus customer dengan mempertahankan riwayat
+
+Reproduksi terisolasi menunjukkan satu dialog tetap terbuka karena `deleteMaster` menolak customer yang masih dirujuk dokumen/pembayaran. Pengguna mengklarifikasi perubahan hanya untuk customer. Penghapusan sekarang menandai customer `deleted=true` dan `active=false`, menghilangkannya dari daftar/pilihan baru tanpa menghapus identitas internal, saldo awal, snapshot invoice, dokumen, baris, pembayaran, atau alokasi. Dialog menjelaskan cakupan ini dan tertutup setelah satu konfirmasi sukses. Barang/dokumen/pembayaran tetap memakai aturan penghapusan sebelumnya.
+
+Tagihan historis customer terhapus tetap dapat dilunasi. Normalisasi flag boolean menjaga kompatibilitas CSV desktop pada campuran data lama/baru. CSV customer menambahkan kolom opsional `Dihapus`; ekspor semua data tetap menyertakan referensi customer historis, dan Upsert/Replace mempertahankan status penghapusannya. Backup JSON mempertahankan flag yang sama. Kode customer historis tetap unik dan tidak didaur ulang untuk identitas baru.
+
+Verifikasi: 94 tes unit frontend dan 14 tes browser lolos, mencakup satu konfirmasi, reload, invoice normal/COPY, pelunasan lama, serta ekspor/impor riwayat. TypeScript dan format file terkait lolos. Pengujian memakai data terisolasi. Tidak menghapus data operasional pengguna, tidak build atau push.
+
+
+## Penyempurnaan cetak, urutan kode, dan kontrol desktop
+
+CSS cetak dibatasi menurut jenis laporan: stok lebih padat, daftar customer memakai proporsi kode/nama/alamat/kota/telepon 7/23/43/10/17 persen, dan fax hanya disembunyikan pada media cetak. Invoice mengikuti tinggi konten; garansi tidak lagi meregang untuk memenuhi kertas. DP ditampilkan sebagai pengurang sebelum Grand Total/sisa pembayaran, sedangkan nilai dokumen operasional tetap utuh. Terms of Payment tidak mengulang DP. Metadata penerbit memakai jarak antarblok/padding dan label Telepon yang lengkap. Header/footer otomatis browser tetap dikendalikan melalui dialog cetak browser.
+
+Comparator kode bersama memakai locale Indonesia, perbandingan angka natural, dan pengabaian kapital. Sorting dilakukan pada array hasil filter agar urutan data tersimpan tidak berubah. Tombol cetak invoice/COPY di tabel hanya tersedia untuk penjualan final dan membuka preview dokumen yang dipilih tanpa membuat transaksi/pembayaran baru. Tombol Minimize menggunakan API window Tauri dengan izin `core:window:allow-minimize`; kontrol desktop tetap nonaktif pada browser.
+
+Verifikasi sebelum push: 94 tes unit, 49 tes browser, 3 tes versi rilis, TypeScript, pemeriksaan format, dan diff whitespace lolos. Pemeriksaan browser terisolasi tambahan memverifikasi layout laporan, jarak metadata penerbit pada media screen/print, urutan kode di tabel/dropdown/laporan/CSV, serta cetak normal/COPY dari dua baris penjualan yang berbeda. Tidak membuat build lokal; perilaku native minimize masih memerlukan smoke test Windows.

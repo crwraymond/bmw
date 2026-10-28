@@ -4,7 +4,15 @@ import { NumberInput, SearchSelect } from "./inputs";
 import { useState } from "react";
 import { Plus, Ban, Pencil, Check, Trash2 } from "lucide-react";
 import { revisePayment, deletePayment } from "./revisions";
-import { type DB, type Payment, uid, today, money, dateLabel } from "./types";
+import {
+  compareCodes,
+  type DB,
+  type Payment,
+  uid,
+  today,
+  money,
+  dateLabel,
+} from "./types";
 import {
   balance,
   due,
@@ -352,6 +360,7 @@ export function Payments({
                           p.kind === kind &&
                           (p.active || p.id === edit.partyId),
                       )
+                      .sort(compareCodes)
                       .map((p) => ({
                         value: p.id,
                         label: `${p.code} — ${p.name}`,

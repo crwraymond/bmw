@@ -11,8 +11,9 @@ import {
 } from "./serialInventory";
 import { reviseDocument } from "./revisions";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Plus, Trash2, Eye, Pencil } from "lucide-react";
+import { Plus, Trash2, Eye, Pencil, Printer, Copy } from "lucide-react";
 import {
+  compareCodes,
   type DB,
   type Doc,
   type Line,
@@ -51,6 +52,7 @@ export function DocumentList({
   busy,
   onView,
   onDelete,
+  onPrint,
   openNew = false,
   onOpened,
 }: {
@@ -60,6 +62,7 @@ export function DocumentList({
   busy: boolean;
   onView: (d: Doc) => void;
   onDelete: (d: Doc) => void;
+  onPrint: (d: Doc, mode: "normal" | "copy") => void;
   openNew?: boolean;
   onOpened: () => void;
 }) {
@@ -118,7 +121,7 @@ export function DocumentList({
               "Total",
               isOrder(kind) ? "Sisa order" : "Sisa tagihan",
               "Status",
-              "",
+              "Aksi",
             ]}
           >
             {docs.map((d) => (
@@ -143,6 +146,30 @@ export function DocumentList({
                 </td>
                 <td>
                   <div className="row-actions">
+                    {d.kind === "sale" && d.status === "final" && (
+                      <>
+                        <button
+                          type="button"
+                          title="Cetak invoice"
+                          aria-label={`Cetak invoice ${d.number}`}
+                          disabled={busy}
+                          onClick={() => onPrint(d, "normal")}
+                        >
+                          <Printer size={16} />
+                          Cetak invoice
+                        </button>
+                        <button
+                          type="button"
+                          title="Cetak COPY"
+                          aria-label={`Cetak COPY ${d.number}`}
+                          disabled={busy}
+                          onClick={() => onPrint(d, "copy")}
+                        >
+                          <Copy size={16} />
+                          Cetak COPY
+                        </button>
+                      </>
+                    )}
                     <button
                       title="Hapus dokumen"
                       aria-label={`Hapus ${d.number}`}
@@ -264,9 +291,12 @@ export function Editor({
     () => new Map(db.items.map((i) => [i.id, availableSerials(db, i.id, doc)])),
     [db, doc],
   );
-  const parties = db.parties.filter(
-    (p) => p.kind === partyKind(doc.kind) && (p.active || p.id === doc.partyId),
-  );
+  const parties = db.parties
+    .filter(
+      (p) =>
+        p.kind === partyKind(doc.kind) && (p.active || p.id === doc.partyId),
+    )
+    .sort(compareCodes);
   const parent = db.documents.find((d) => d.id === doc.refId);
   const patch = (i: number, key: keyof Line, value: string | number) => {
     if (key === "serials")
@@ -563,11 +593,13 @@ export function Editor({
                 options={(itemSearch.trim()
                   ? matches
                   : db.items.filter((i) => i.active)
-                ).map((i) => ({
-                  value: i.id,
-                  label: `${i.code} — ${i.name}`,
-                  detail: `Stok ${qty(stock(db, i.id).qty)} ${i.unit}`,
-                }))}
+                )
+                  .sort(compareCodes)
+                  .map((i) => ({
+                    value: i.id,
+                    label: `${i.code} — ${i.name}`,
+                    detail: `Stok ${qty(stock(db, i.id).qty)} ${i.unit}`,
+                  }))}
                 onChange={setItem}
               />
               <button

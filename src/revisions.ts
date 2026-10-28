@@ -355,12 +355,10 @@ export function deleteMaster(db: DB, kind: "items" | "customer", id: string) {
   } else {
     const party = db.parties.find((p) => p.id === id && p.kind === "customer");
     requireValue(party, "Customer tidak ditemukan.");
-    requireValue(
-      !db.documents.some((d) => d.partyId === id) &&
-        !db.payments.some((p) => p.partyId === id),
-      "Customer masih dipakai pada dokumen/pembayaran. Hapus data terkait dahulu, atau nonaktifkan customer.",
-    );
-    db.parties = db.parties.filter((p) => p.id !== id);
+    // Retain the historical identity/balance for invoices and settlements.
+    // Removing a customer from the catalog must never cascade into transactions.
+    party.deleted = true;
+    party.active = false;
     audit(db, "Hapus customer", party.code, party.name);
   }
 }

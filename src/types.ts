@@ -21,6 +21,7 @@ export interface Item {
   active: boolean;
 }
 export interface Party {
+  deleted?: boolean;
   id: string;
   kind: "customer" | "supplier";
   code: string;
@@ -194,3 +195,7 @@ export function emptyDB(): DB {
     ],
   };
 }
+
+// Natural code order keeps mixed letter/number codes consistent across views.
+export const compareCodes = (a: { code: string }, b: { code: string }) =>
+  a.code.localeCompare(b.code, "id", { numeric: true, sensitivity: "base" });

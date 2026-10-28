@@ -182,11 +182,13 @@ export function Table({
 
 export function DeleteConfirm({
   name,
+  detail,
   busy,
   onClose,
   onConfirm,
 }: {
   name: string;
+  detail?: string;
   busy: boolean;
   onClose: () => void;
   onConfirm: (reportError: (message: string) => void) => Promise<void>;
@@ -203,9 +205,9 @@ export function DeleteConfirm({
       >
         <div className="confirm-body">
           <p>
-            Hapus {name}? Tindakan ini menghapus data beserta detailnya. Data
-            yang masih terhubung dengan transaksi lain harus diselesaikan atau
-            dihapus lebih dahulu.
+            Hapus {name}?{" "}
+            {detail ||
+              "Tindakan ini menghapus data beserta detailnya. Data yang masih terhubung dengan transaksi lain harus diselesaikan atau dihapus lebih dahulu."}
           </p>
           {error && (
             <p className="stock-error" role="alert">

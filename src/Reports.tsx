@@ -1,7 +1,7 @@
 import { SearchSelect } from "./inputs";
 import { useState } from "react";
 import { Download, Printer } from "lucide-react";
-import { type DB, money, qty, dateLabel, labels } from "./types";
+import { compareCodes, type DB, money, qty, dateLabel, labels } from "./types";
 import {
   activeDocs,
   linesOf,
@@ -71,9 +71,11 @@ export function Reports({
       .filter(
         (p) =>
           p.kind === "customer" &&
+          !p.deleted &&
           inCode(p.code) &&
           (!contact || p.id === contact),
       )
+      .sort(compareCodes)
       .map((p) => [p.code, p.name, p.address, p.city, p.phone, p.fax]);
   } else if (report === "stock") {
     headers = [
@@ -85,6 +87,7 @@ export function Reports({
     ];
     rows = db.items
       .filter((i) => inCode(i.code))
+      .sort(compareCodes)
       .map((i) => [
         i.code,
         i.name,
@@ -106,6 +109,7 @@ export function Reports({
     ];
     rows = db.items
       .filter((i) => inCode(i.code))
+      .sort(compareCodes)
       .map((i) => {
         let q = 0,
           v = 0,
@@ -137,12 +141,14 @@ export function Reports({
         inCode(p.code) &&
         (!contact || contact === p.id),
     );
-    rows = parties.map((p) => [
-      p.code,
-      p.name,
-      p.kind === "customer" ? "Piutang" : "Hutang",
-      money(balance(db, p.id, to)),
-    ]);
+    rows = parties
+      .sort(compareCodes)
+      .map((p) => [
+        p.code,
+        p.name,
+        p.kind === "customer" ? "Piutang" : "Hutang",
+        money(balance(db, p.id, to)),
+      ]);
     summary = `Total saldo: ${money(parties.reduce((s, p) => s + balance(db, p.id, to), 0))}. Termasuk saldo awal; saldo negatif berarti kredit. Tanggal awal tidak membatasi saldo kumulatif.`;
     if (report === "receivable") {
       headers = ["Tanggal", "Dokumen / kontak", "Keterangan", "Nilai"];
@@ -181,6 +187,7 @@ export function Reports({
         (p) =>
           p.kind === "customer" && (!party || party === p.id) && inCode(p.code),
       )
+      .sort(compareCodes)
       .map((p) => {
         const ds = docs.filter(
           (d) => d.partyId === p.id && d.kind === "customer_order",
@@ -269,6 +276,7 @@ export function Reports({
                 { value: "", label: "Semua kontak" },
                 ...db.parties
                   .filter((p) => p.kind === "customer")
+                  .sort(compareCodes)
                   .map((p) => ({
                     value: p.id,
                     label: `${p.code} — ${p.name}`,
@@ -294,7 +302,11 @@ export function Reports({
           />
         </Field>
       </div>
-      <section className="panel report-section" id="report-print">
+      <section
+        className="panel report-section"
+        id="report-print"
+        data-report={report}
+      >
         <div className="section-heading">
           <div>
             <h3>{title}</h3>

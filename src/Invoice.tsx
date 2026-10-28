@@ -225,7 +225,7 @@ function InvoicePages({
                   <p>{doc.issuerAddress}</p>
                   <p>
                     {doc.issuerPhone &&
-                      `T: ${doc.issuerPhone.replace(/^T:\s*/i, "")}`}
+                      `Telepon: ${doc.issuerPhone.replace(/^(?:T|Telp\.?|Telepon|Phone|Telephone)\s*:\s*/i, "")}`}
                   </p>
                 </section>
               </div>
@@ -292,13 +292,34 @@ function InvoicePages({
                           </td>
                         </tr>
                       )}
+                      {doc.downPayment > 0 && (
+                        <>
+                          <tr>
+                            <td colSpan={5}>Total Invoice</td>
+                            <td>
+                              <InvoiceMoney value={doc.total} />
+                            </td>
+                          </tr>
+                          <tr>
+                            <td colSpan={5}>Down Payment (DP)</td>
+                            <td>
+                              <InvoiceMoney value={-doc.downPayment} />
+                            </td>
+                          </tr>
+                        </>
+                      )}
                       <tr>
                         <td colSpan={5}>
-                          <b>Grand Total</b>
+                          <b>
+                            Grand Total
+                            {doc.downPayment > 0 && " (Sisa pembayaran)"}
+                          </b>
                         </td>
                         <td>
                           <b>
-                            <InvoiceMoney value={doc.total} />
+                            <InvoiceMoney
+                              value={doc.total - (doc.downPayment || 0)}
+                            />
                           </b>
                         </td>
                       </tr>
@@ -308,11 +329,10 @@ function InvoicePages({
               )}
               {sheet.summary && (
                 <section className="invoice-terms">
-                  <b>Terms of Payment:</b> {doc.terms || "—"},{" "}
-                  <b>Down Payment: {money(doc.downPayment || 0)}</b>
+                  <b>Terms of Payment:</b> {doc.terms || "—"}
                 </section>
               )}
-              {(sheet.warranty || sheet.final) && (
+              {sheet.warranty && (
                 <section className="invoice-warranty">
                   {sheet.warranty && (
                     <b>

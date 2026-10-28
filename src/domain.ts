@@ -163,11 +163,16 @@ export function withStoreDefaults(db: DB): DB {
       ...p,
       sourceDocId: p.sourceDocId || "",
     })),
-    parties: db.parties.some((p) => p.id === supplier.id)
+    parties: (db.parties.some((p) => p.id === supplier.id)
       ? db.parties.map((p) =>
           p.id === supplier.id ? { ...p, active: true } : p,
         )
-      : [...db.parties, supplier],
+      : [...db.parties, supplier]
+    ).map((p) => ({
+      ...p,
+      deleted: p.deleted ?? false,
+      active: p.deleted ? false : p.active,
+    })),
   };
 }
 export const isOrder = (k: Kind) => k.endsWith("_order");
@@ -437,9 +442,14 @@ export function saveParty(db: DB, party: Party) {
       old.openingBalance === party.openingBalance,
       "Saldo awal terkunci karena sudah ada dokumen terkait.",
     );
+  const saved = {
+    ...party,
+    deleted: party.deleted ?? old?.deleted ?? false,
+  };
+  if (saved.deleted) saved.active = false;
   db.parties = old
-    ? db.parties.map((p) => (p.id === party.id ? { ...party } : p))
-    : [...db.parties, { ...party }];
+    ? db.parties.map((p) => (p.id === party.id ? saved : p))
+    : [...db.parties, saved];
   audit(db, old ? "Ubah kontak" : "Tambah kontak", party.code, party.name);
 }
 function validateHeader(db: DB, doc: Doc) {
@@ -702,7 +712,11 @@ export function savePayment(
 ) {
   const p = { ...input, sourceDocId: input.sourceDocId || "" };
   const party = db.parties.find((x) => x.id === p.partyId);
-  check(party?.active, "Pilih customer/pemasok aktif.");
+  // Deleted customer identities remain valid for settling their historical debts.
+  check(
+    party?.active || (party?.kind === "customer" && party.deleted),
+    "Pilih customer/pemasok aktif.",
+  );
   check(
     p.direction === (party.kind === "customer" ? "in" : "out"),
     "Arah pembayaran tidak sesuai pihak.",
@@ -821,6 +835,12 @@ export function validateDB(value: unknown): asserts value is DB {
   check(
     db.settings.length === 1 && typeof db.settings[0].name === "string",
     "Profil toko tidak valid.",
+  );
+  check(
+    db.parties.every(
+      (p) => p.deleted === undefined || typeof p.deleted === "boolean",
+    ),
+    "Status hapus customer tidak valid.",
   );
   for (const i of db.items) {
     check(

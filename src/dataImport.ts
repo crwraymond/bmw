@@ -1,4 +1,5 @@
 import {
+  compareCodes,
   type DB,
   type Doc,
   type Line,
@@ -77,6 +78,7 @@ const masterHeaders = {
     "Saldo awal",
     "Aktif",
     "Saldo berjalan",
+    "Dihapus",
   ],
 };
 const docHeaders = [
@@ -168,6 +170,7 @@ export function exportData(db: DB, target: ImportTarget, ids?: string[]) {
   if (target === "items")
     rows = db.items
       .filter((i) => include(i.id))
+      .sort(compareCodes)
       .map((i) => [
         i.code,
         i.name,
@@ -185,6 +188,7 @@ export function exportData(db: DB, target: ImportTarget, ids?: string[]) {
   else if (target === "customer")
     rows = db.parties
       .filter((p) => p.kind === "customer" && include(p.id))
+      .sort(compareCodes)
       .map((p) => [
         p.code,
         p.name,
@@ -195,6 +199,7 @@ export function exportData(db: DB, target: ImportTarget, ids?: string[]) {
         qty(p.openingBalance),
         p.active ? "ya" : "tidak",
         qty(balance(db, p.id)),
+        p.deleted ? "ya" : "tidak",
       ]);
   else if (target === "payments")
     rows = db.payments
@@ -267,14 +272,16 @@ const num = (r: CSVRow, name: string, fallback = 0, signed = false) =>
   get(r, name) === undefined
     ? fallback
     : csvNumber(text(r, name), name, signed);
-function active(r: CSVRow, fallback: boolean) {
-  const v = text(r, "Aktif", fallback ? "ya" : "tidak").toLowerCase();
+function booleanCell(r: CSVRow, name: string, fallback: boolean) {
+  const v = text(r, name, fallback ? "ya" : "tidak").toLowerCase();
   requireValue(
     ["ya", "tidak", "true", "false", "1", "0", "aktif", "nonaktif"].includes(v),
-    "Aktif harus ya atau tidak.",
+    `${name} harus ya atau tidak.`,
   );
   return ["ya", "true", "1", "aktif"].includes(v);
 }
+const active = (r: CSVRow, fallback: boolean) =>
+  booleanCell(r, "Aktif", fallback);
 function status(r: CSVRow, fallback: string, payment = false) {
   const v = text(r, "Status", fallback).toLowerCase();
   const mapped =
@@ -462,7 +469,9 @@ export function prepareImport(
             fax: text(r, "Fax", old?.fax),
             openingBalance: num(r, "Saldo awal", old?.openingBalance, true),
             active: active(r, old?.active ?? true),
+            deleted: booleanCell(r, "Dihapus", old?.deleted ?? false),
           };
+          if (p.deleted) p.active = false;
           const validation = {
             ...work,
             documents: [],

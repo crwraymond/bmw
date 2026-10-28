@@ -69,7 +69,7 @@ function fixture() {
   return { db, item, c, post };
 }
 describe("hapus data dengan validasi relasi", () => {
-  it("hapus master yang belum dipakai dan menolak master yang masih dirujuk", () => {
+  it("hapus barang yang belum dipakai dan simpan identitas historis customer", () => {
     const { db, item, c, post } = fixture();
     const buy = post("purchase", 3);
     const before = structuredClone(db);
@@ -79,7 +79,10 @@ describe("hapus data dengan validasi relasi", () => {
     deleteMaster(db, "items", item.id);
     deleteMaster(db, "customer", c.id);
     expect(db.items).toEqual([]);
-    expect(db.parties.some((p) => p.id === c.id)).toBe(false);
+    expect(db.parties.find((p) => p.id === c.id)).toMatchObject({
+      deleted: true,
+      active: false,
+    });
     validateDB(db);
   });
   it("penghapusan transaksi memperbarui stok dan menolak menghapus pembelian sumber lebih dahulu", () => {
@@ -134,7 +137,7 @@ describe("hapus data dengan validasi relasi", () => {
     deleteMaster(db, "customer", c.id);
     validateDB(db);
   });
-  it("customer dengan pembayaran saldo awal harus menghapus pembayaran lebih dahulu", () => {
+  it("hapus customer mempertahankan pembayaran saldo awal", () => {
     const { db, c } = setup();
     db.parties[0].openingBalance = 50;
     const p = {
@@ -148,9 +151,14 @@ describe("hapus data dengan validasi relasi", () => {
       notes: "",
     };
     savePayment(db, p, []);
-    expect(() => deleteMaster(db, "customer", c.id)).toThrow(/pembayaran/);
-    deletePayment(db, p.id);
+    const before = structuredClone(db.payments);
     deleteMaster(db, "customer", c.id);
+    expect(db.payments).toEqual(before);
+    expect(db.parties.find((party) => party.id === c.id)).toMatchObject({
+      deleted: true,
+      active: false,
+      openingBalance: 50,
+    });
     validateDB(db);
   });
   it("semua jenis dokumen termasuk retur pembelian dan draf dapat dihapus bila tidak terhubung", () => {

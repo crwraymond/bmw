@@ -4,7 +4,15 @@ import { NumberInput } from "./inputs";
 import { saveCatalogItem, reviseParty, deleteMaster } from "./revisions";
 import { useState } from "react";
 import { Plus, Pencil, Power, Trash2 } from "lucide-react";
-import { type DB, type Item, type Party, uid, money, qty } from "./types";
+import {
+  compareCodes,
+  type DB,
+  type Item,
+  type Party,
+  uid,
+  money,
+  qty,
+} from "./types";
 import { stock, balance, saveParty, audit } from "./domain";
 import {
   type Commit,
@@ -34,12 +42,14 @@ export function Masters({
   const [deleting, setDeleting] = useState<Item | Party | null>(null);
   const items = kind === "items";
   const list = (
-    items ? db.items : db.parties.filter((p) => p.kind === kind)
-  ).filter(
-    (x) =>
-      (inactive || x.active) &&
-      `${x.code} ${x.name}`.toLowerCase().includes(search.toLowerCase()),
-  );
+    items ? db.items : db.parties.filter((p) => p.kind === kind && !p.deleted)
+  )
+    .filter(
+      (x) =>
+        (inactive || x.active) &&
+        `${x.code} ${x.name}`.toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort(compareCodes);
   const create = () =>
     setEditing(
       items
@@ -214,6 +224,11 @@ export function Masters({
       {deleting && (
         <DeleteConfirm
           name={`${items ? "barang" : "customer"} ${deleting.code} — ${deleting.name}`}
+          detail={
+            items
+              ? undefined
+              : "Customer dihapus dari daftar dan pilihan transaksi baru. Penjualan, order, retur, invoice, pembayaran, serta saldo yang sudah tercatat tetap tersimpan."
+          }
           busy={busy}
           onClose={() => setDeleting(null)}
           onConfirm={async (reportError) => {

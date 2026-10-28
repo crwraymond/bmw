@@ -157,8 +157,10 @@ test("pembayaran gabungan mengarahkan ke Pelunasan tanpa menghapus tagihan lain"
   ).toBe(before);
 });
 
-test("penolakan hapus master juga tampil dalam modal", async ({ page }) => {
-  await seed(page);
+test("hapus customer cukup satu konfirmasi dan riwayat penjualan serta pembayaran tetap ada", async ({
+  page,
+}) => {
+  const ref = await seed(page);
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Kembali", exact: true })
@@ -170,9 +172,64 @@ test("penolakan hapus master juga tampil dalam modal", async ({ page }) => {
   await page
     .getByRole("button", { name: "Hapus Customer", exact: true })
     .click();
+  const before = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("toko-offline-preview-v1")!),
+  );
   const dialog = page.getByRole("dialog");
+  await expect(dialog).toHaveCount(1);
   await dialog.getByRole("button", { name: "Hapus data", exact: true }).click();
-  await expect(dialog.getByRole("alert")).toContainText(
-    "Customer masih dipakai",
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("checkbox", { name: "Tampilkan nonaktif" }).check();
+  await expect(
+    page.getByRole("button", { name: "Hapus Customer", exact: true }),
+  ).toHaveCount(0);
+  await page.reload();
+  const after = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("toko-offline-preview-v1")!),
+  );
+  expect(after.documents).toEqual(before.documents);
+  expect(after.lines).toEqual(before.lines);
+  expect(after.payments).toEqual(before.payments);
+  expect(after.allocations).toEqual(before.allocations);
+  expect(
+    after.parties.find((p: { code: string }) => p.code === "C"),
+  ).toMatchObject({ deleted: true, active: false });
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Penjualan", exact: true })
+    .click();
+  await expect(page.locator("tbody")).toContainText("Customer");
+  await page.getByTitle("Lihat detail").click();
+  await page
+    .getByRole("button", { name: "Cetak keduanya", exact: true })
+    .click();
+  await expect(page.locator(".invoice")).toHaveCount(2);
+  for (const invoice of await page.locator(".invoice").all())
+    await expect(invoice.locator(".invoice-account")).toContainText("Customer");
+  await page.getByRole("button", { name: "Tutup", exact: true }).click();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Pelunasan", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: `Lunasi ${ref.number}`, exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: `Lunas ${ref.number}`, exact: true }),
+  ).toBeDisabled();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Penjualan", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Penjualan baru", exact: true })
+    .click();
+  const form = page.getByRole("dialog");
+  await form
+    .getByRole("combobox", { name: "Customer", exact: true })
+    .fill("Customer");
+  await expect(form.getByRole("option", { name: /C — Customer/ })).toHaveCount(
+    0,
   );
 });

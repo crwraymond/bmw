@@ -728,3 +728,15 @@ Klarifikasi terbaru: invoice harus otomatis memakai data penerbit, logo, rekenin
 
 
 Default teks garansi, syarat pembayaran, dan negara berlaku juga untuk profil pengaturan bernama khusus seperti BMW. Field kosong pada profil lama dilengkapi sekali, tetap dapat diedit, serta dapat dikembalikan lewat reset per bagian. Rekening dan identitas pengguna tidak ikut ditimpa.
+
+
+## Klarifikasi penghapusan customer — 28 Oktober 2026
+
+Pengguna membatasi perubahan penghapusan hanya pada customer. Hapus customer cukup satu konfirmasi dan menghilangkannya dari daftar customer, laporan daftar customer, serta pilihan transaksi baru, termasuk ketika daftar nonaktif ditampilkan. Penjualan, order, retur, invoice, pembayaran, stok, dan saldo historis tetap tersimpan. Tagihan lama tetap dapat dilunasi. Referensi identitas customer disimpan internal dengan penanda hapus agar relasi transaksi tetap valid; kode historis tetap dicadangkan. Ekspor/impor semua data serta backup harus mempertahankan penanda ini. Aturan penghapusan barang, dokumen, retur, dan pembayaran tidak berubah.
+
+
+## Penyempurnaan cetak dan navigasi — 28 Oktober 2026
+
+Laporan stok dicetak dengan baris lebih padat. Cetakan daftar customer memakai kolom kode/kota lebih kecil, alamat lebih lebar, tanpa kolom fax. Daftar customer/barang, pilihan transaksi, laporan, dan CSV master diurutkan berdasarkan kode A–Z secara natural (B2 sebelum B10).
+
+Invoice menampilkan total transaksi, DP sebagai pengurang, dan Grand Total sebagai sisa pembayaran tanpa mengubah nilai transaksi dalam laporan. DP tidak diulang pada Terms of Payment. Area garansi mengikuti tinggi konten tanpa ruang kosong besar; label telepon penerbit ditulis lengkap dan memiliki jarak antarblok. Tombol Cetak invoice/Cetak COPY tersedia langsung di kolom Aksi penjualan final. Tombol Minimize ditambahkan di samping Keluar untuk aplikasi desktop; preview browser menampilkannya nonaktif.
