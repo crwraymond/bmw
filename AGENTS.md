@@ -8,3 +8,5 @@
 - Jangan menambahkan trailer Co-Authored-By atau tanda tangan/atribusi AI pada commit dan deskripsi PR.
 - Nama branch baru tidak boleh mengandung codex, tanpa memperhatikan huruf besar/kecil. Jangan mengubah nama branch yang sudah ada demi menerapkan aturan ini.
 - Gunakan skill Graphify bila tersedia untuk eksplorasi codebase, arsitektur, penelusuran dependensi, dan analisis dampak. Jika ada graph, periksa scope/freshness dan query sebelum pencarian source luas. Verifikasi temuan pada source saat ini. Jika graph belum tersedia atau tidak mencakup area terkait, gunakan pencarian terarah dan nyatakan batasannya. Pertahankan scope yang sengaja dibatasi saat memperbarui graph.
+
+- Keputusan pengguna 30 Oktober 2026: desktop boleh memilih CSV offline atau Supabase online; sinkronisasi memverifikasi snapshot dan menolak konflik revisi. Semua installer privat memakai satu toko tanpa login. Pertahankan RLS serta pemeriksaan capability pada RPC; jangan memasukkan capability/service-role key ke rilis publik. Lihat supabase/README.md.

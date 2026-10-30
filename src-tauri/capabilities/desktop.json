@@ -1,0 +1,14 @@
+{
+  "identifier": "desktop",
+  "description": "Desktop window actions and signed desktop updater",
+  "platforms": ["windows", "macOS", "linux"],
+  "windows": ["main"],
+  "permissions": [
+    "core:window:allow-set-theme",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "updater:allow-check",
+    "updater:allow-download",
+    "updater:allow-install"
+  ]
+}

@@ -70,7 +70,7 @@ describe("safe app updates", () => {
     expect(f.calls).toEqual(["backup:17", "download"]);
   });
   it("explains unavailable private releases without claiming there is no update", () => {
-    expect(updateError("404 Not Found")).toContain("repo BMW sudah public");
+    expect(updateError("404 Not Found")).toContain("rilis GitHub");
     expect(updateError("Invalid signature")).toContain("Invalid signature");
   });
 });

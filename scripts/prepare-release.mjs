@@ -12,6 +12,22 @@ export function releaseVersion(base, run) {
     throw new Error("Release version exceeds Windows installer limits");
   return parts.join(".");
 }
+export function androidVersionCode(version) {
+  const parts = version.split(".").map(Number);
+  if (
+    parts.length !== 3 ||
+    parts.some((n) => !Number.isSafeInteger(n) || n < 0) ||
+    parts[1] > 999 ||
+    parts[2] > 999
+  )
+    throw new Error(
+      "Android release requires minor/patch below 1000; raise the base minor version before resetting the workflow counter",
+    );
+  const code = parts[0] * 1_000_000 + parts[1] * 1000 + parts[2];
+  if (code <= 0 || code > 2_100_000_000)
+    throw new Error("Android version code exceeds limits");
+  return code;
+}
 export function prepareRelease(root, run) {
   const json = (file) => JSON.parse(readFileSync(resolve(root, file), "utf8"));
   const pkg = json("package.json"),
@@ -33,6 +49,8 @@ export function prepareRelease(root, run) {
   )
     throw new Error("HTTPS update endpoint is required");
   const version = releaseVersion(pkg.version, run);
+  const android = json("src-tauri/tauri.android.conf.json");
+  android.bundle.android.versionCode = androidVersionCode(version);
   let cargo = readFileSync(resolve(root, "src-tauri/Cargo.toml"), "utf8");
   let cargoLock = readFileSync(resolve(root, "src-tauri/Cargo.lock"), "utf8");
   const packageVersion = /(\[package\][\s\S]*?\r?\nversion = ")[^"]+("\r?\n)/;
@@ -51,6 +69,7 @@ export function prepareRelease(root, run) {
     ["package.json", pkg],
     ["package-lock.json", lock],
     ["src-tauri/tauri.conf.json", config],
+    ["src-tauri/tauri.android.conf.json", android],
   ])
     writeFileSync(resolve(root, file), JSON.stringify(data, null, 2) + "\n");
   writeFileSync(resolve(root, "src-tauri/Cargo.toml"), cargo);
@@ -67,5 +86,5 @@ if (
       process.env.GITHUB_OUTPUT,
       `version=${version}\ntag=v${version}\n`,
     );
-  process.stdout.write(`Prepared signed Windows release ${version}\n`);
+  process.stdout.write(`Prepared desktop and Android release ${version}\n`);
 }

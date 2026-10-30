@@ -322,6 +322,20 @@ pub fn backup(root: &Path, destination: &Path) -> Result<String, String> {
     write_generation(&path, &db)?;
     Ok(path.to_string_lossy().to_string())
 }
+// Export an explicit snapshot (including Supabase data) as a verified CSV backup.
+pub fn backup_snapshot(db: &Value, destination: &Path) -> Result<String, String> {
+    validate(db)?;
+    fs::create_dir_all(destination).map_err(err)?;
+    let pending = destination.join(format!(".pending-backup-{}", stamp()));
+    write_generation(&pending, db)?;
+    if read_generation(&pending)? != *db {
+        return Err("Verifikasi backup CSV gagal".into());
+    }
+    let path = destination.join(format!("toko-backup-{}-{}", db["revision"], stamp()));
+    fs::rename(&pending, &path).map_err(err)?;
+    sync_dir(destination)?;
+    Ok(path.to_string_lossy().to_string())
+}
 // Refuse stale/corrupt snapshots. Installation requires a verified backup.
 pub fn prepare_update(root: &Path, backup_root: &Path, expected: u64) -> Result<String, String> {
     let current = load(root)?;
@@ -339,6 +353,17 @@ mod tests {
     use super::*;
     fn root() -> PathBuf {
         std::env::temp_dir().join(format!("toko-store-test-{}", stamp()))
+    }
+    #[test]
+    fn supplied_snapshot_backup_does_not_export_stale_local_data() {
+        let p = root();
+        let mut db = load(&p).unwrap();
+        db["settings"][0]["name"] = json!("Snapshot Supabase terbaru");
+        db["revision"] = json!(42);
+        let path = backup_snapshot(&db, &p.join("exports")).unwrap();
+        assert_eq!(read_generation(Path::new(&path)).unwrap(), db);
+        assert_ne!(load(&p).unwrap()["settings"][0]["name"], db["settings"][0]["name"]);
+        fs::remove_dir_all(p).unwrap();
     }
     #[test]
     fn roundtrip_and_conflict() {

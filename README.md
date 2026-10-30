@@ -1,6 +1,19 @@
 # Toko Offline
 
-Aplikasi desktop toko berbasis React, Vite, TypeScript, dan Tauri, dengan CSV lokal. Target distribusi pengguna adalah **Windows x64**. Halaman awal adalah dashboard penjualan, laba kotor, dan transaksi.
+## Pilihan penyimpanan — keputusan 30 Oktober 2026
+
+Desktop menyediakan **CSV lokal** dan **database Supabase**, serta **Backup ke CSV**. Mode CSV tetap offline; mode Supabase memerlukan internet. Tombol **Sync ke database & gunakan** membuat backup lokal, mengunggah snapshot secara atomik, memverifikasi hasil, lalu menyimpan pilihan database pada perangkat. Pilihan tidak berubah saat sync gagal. Tidak ada fallback otomatis ke CSV.
+
+Saat kembali dari CSV ke database, perubahan lokal hanya diterima jika revisi Supabase masih sama dengan revisi asal CSV. Konflik menghentikan unggahan dan mempertahankan CSV. Perangkat lain dapat memakai **Muat data Supabase** tanpa mengunggah data lokalnya.
+
+Semua installer privat untuk toko yang sama, tanpa halaman login. Koneksi memakai capability toko yang dibundel; pemegang installer dianggap berhak membaca/menulis toko. Capability tidak boleh masuk rilis atau website publik. Rincian konfigurasi, migrasi, backup, dan pengujian: [supabase/README.md](supabase/README.md).
+
+
+Aplikasi desktop toko berbasis React, Vite, TypeScript, dan Tauri, dengan pilihan CSV lokal atau Supabase. Target distribusi pengguna adalah **Windows x64** dan **Android ARM64**. Halaman awal adalah dashboard penjualan, laba kotor, dan transaksi.
+
+## APK Android
+
+APK privat dan petunjuk pemasangan/build: [README_ANDROID.md](README_ANDROID.md). Tampilan menyesuaikan HP dan tablet; aset aplikasi dibundel ke APK.
 
 ## Lihat hasil di browser
 
@@ -22,7 +35,7 @@ npm run dev
 
 Buka alamat yang dicetak Vite (default `http://localhost:1420`). Jika port sedang dipakai server pratinjau yang sudah berjalan, cukup buka alamat tersebut.
 
-**Mode browser adalah pratinjau:** data tersimpan di localStorage browser itu dan terpisah dari data desktop. Backup browser berupa JSON. Data pengujian otomatis selalu berada pada konteks browser terisolasi; aplikasi tidak mengisi data contoh ke toko pengguna.
+**Mode browser adalah pratinjau:** data tersimpan di localStorage browser itu dan terpisah dari data desktop. Backup browser baru berupa CSV lengkap; backup JSON lama tetap dapat dipulihkan. Data pengujian otomatis selalu berada pada konteks browser terisolasi; aplikasi tidak mengisi data contoh ke toko pengguna.
 
 ## Jalankan aplikasi desktop untuk pengembangan
 
@@ -35,13 +48,13 @@ npm run tauri:dev
 
 Pengguna akhir cukup memasang installer dan membuka aplikasi. Mereka tidak perlu Node, npm, Rust, atau terminal.
 
-## Build Windows lewat GitHub Actions
+## Build Windows dan Android lewat GitHub Actions
 
-Workflow `.github/workflows/windows.yml` otomatis berjalan setelah push ke `main` dan juga bisa dijalankan manual. Setelah signing secrets dikonfigurasi, workflow menghasilkan installer bertanda tangan dan rilis update lengkap:
+Workflow `.github/workflows/windows.yml` otomatis berjalan setelah push ke `main` dan juga bisa dijalankan manual. Setelah signing secrets dikonfigurasi, workflow membangun Windows x64 serta Android ARM64 dan memublikasikan rilis hanya setelah kedua paket lengkap:
 
 1. Buka tab **Actions** pada repository.
-2. Pilih **Build Windows installer** → **Run workflow**.
-3. Setelah berhasil, unduh artifact **toko-offline-windows-x64**.
+2. Pilih **Build desktop and Android** → **Run workflow**.
+3. Setelah berhasil, unduh artifact **toko-offline-windows-x64** atau **toko-offline-android-arm64**.
 4. Ekstrak dan jalankan file `*-setup.exe` di Windows x64.
 
 Workflow memeriksa aturan bisnis, build frontend, dan pengujian CSV/password pada runner Windows sebelum membuat installer NSIS. Konfigurasi `src-tauri/tauri.windows.conf.json` menyertakan installer WebView2 offline agar pemasangan runtime tidak memerlukan internet. Build di CI tetap memerlukan internet untuk mengunduh dependency dan runtime. Installer belum memakai sertifikat code signing.
@@ -87,13 +100,13 @@ Tombol **Impor CSV** tersedia pada halaman barang, customer, dokumen, dan pembay
 
 Lihat [IMPORT_CSV.md](IMPORT_CSV.md) untuk format, contoh, aturan relasi, dan perbedaan dengan backup lengkap.
 
-## Update aplikasi Windows
+## Update aplikasi Windows dan Android
 
 Pengaturan menyediakan **Cek update** dan **Pasang update**. Pengecekan saat aplikasi dibuka aktif secara default dan dapat dimatikan; pemasangan memerlukan konfirmasi. Aplikasi membuat backup CSV yang diverifikasi sebelum mengunduh/memasang paket bertanda tangan. Folder data dan identifier aplikasi tetap sama. Kegagalan backup, konflik revisi, atau tanda tangan menghentikan pemasangan.
 
-Repo BMW harus **public saat penerima mengecek dan mengunduh update**. Saat private, aplikasi menampilkan kegagalan akses dan bisa dicoba lagi setelah repo dibuat public. Tidak ada token GitHub yang ditanam di installer. Visibility repo tidak diubah oleh aplikasi atau workflow.
+Rilis GitHub public menyertakan paket update tanpa capability database toko. Pengaturan akses dari installer awal privat dipertahankan pada perangkat. Installer baru dari paket public tidak mendapat akses toko. Tidak ada token GitHub yang ditanam di installer.
 
-Installer lama yang belum memuat updater harus diperbarui manual sekali. Panduan signing secrets, rilis, backup, dan uji Windows tersedia pada [UPDATE_WINDOWS.md](UPDATE_WINDOWS.md). Di preview browser, Cek update dan Keluar tetap terlihat dalam keadaan nonaktif; gunakan tab browser untuk keluar.
+Installer lama yang belum memuat updater harus diperbarui manual sekali. Android memakai dialog pemasangan sistem dan memeriksa sertifikat APK. Panduan signing secrets, rilis, backup, serta installer awal privat tersedia pada [UPDATE_RELEASES.md](UPDATE_RELEASES.md). Di preview browser, Cek update dan Keluar tetap terlihat dalam keadaan nonaktif; gunakan tab browser untuk keluar.
 
 ## Penyimpanan desktop
 

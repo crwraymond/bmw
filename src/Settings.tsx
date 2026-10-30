@@ -1,3 +1,5 @@
+import { StoragePanel, type StorageAction } from "./StoragePanel";
+import { storageState } from "./storage";
 import { UpdatePanel, type AppUpdates } from "./AppUpdates";
 import { defaultLogo, defaultPartnerLogo } from "./branding";
 import { invoiceDefaults } from "./invoiceDefaults";
@@ -17,7 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { type DB } from "./types";
 import { audit } from "./domain";
 import { type Commit, Field, Table } from "./ui";
-import { desktop, backup } from "./storage";
+import { desktop, native, android, backup } from "./storage";
 export function Settings({
   updates,
   db,
@@ -27,6 +29,7 @@ export function Settings({
   onRestore,
   onError,
   onNotify,
+  onStorageAction,
 }: {
   updates: AppUpdates;
   db: DB;
@@ -36,6 +39,7 @@ export function Settings({
   onRestore: () => void;
   onError: (s: string) => void;
   onNotify: (s: string) => void;
+  onStorageAction: StorageAction;
 }) {
   const [s, setS] = useState({ ...db.settings[0] });
   const logoInputs = useRef<
@@ -360,20 +364,26 @@ export function Settings({
         </section>
       </div>
       <aside>
-        <UpdatePanel updates={updates} busy={busy} />
+        <StoragePanel db={db} busy={busy} onAction={onStorageAction} />
         <section className="panel settings-panel">
           <div className="section-heading">
             <h3>Penyimpanan & backup</h3>
             <FolderOpen size={20} />
           </div>
           <span className="badge active">
-            {desktop ? "CSV lokal" : "Pratinjau browser"}
+            {storageState().mode === "supabase"
+              ? "Database Supabase"
+              : native
+                ? "CSV lokal"
+                : "Pratinjau browser"}
           </span>
           <p className="data-path">{path}</p>
           <p className="muted">
-            Revisi data {db.revision}. Simpan otomatis ke generasi CSV baru saat
-            menekan Simpan atau Sahkan. Draf tidak memengaruhi stok. Aplikasi
-            mempertahankan 50 generasi data terakhir.
+            Revisi data {db.revision}.{" "}
+            {storageState().mode === "supabase"
+              ? "Perubahan disimpan ke database saat menekan Simpan atau Sahkan. Internet diperlukan."
+              : "Perubahan disimpan lokal saat menekan Simpan atau Sahkan. Desktop mempertahankan 50 generasi CSV terakhir."}{" "}
+            Draf tidak memengaruhi stok.
           </p>
           <p className="form-note">
             CSV memuat barang, customer, order, transaksi, retur, dan
@@ -394,18 +404,21 @@ export function Settings({
             }}
           >
             <Download size={16} />
-            Buat backup
+            Backup ke CSV
           </button>
           <button className="full" disabled={busy} onClick={onRestore}>
             <RotateCcw size={16} />
             Pulihkan backup
           </button>
           <p className="form-note">
-            Desktop: pilih folder backup yang berisi manifest.json. Sebelum
-            pemulihan, aplikasi membuat backup otomatis. Simpan salinan terpisah
-            dari perangkat utama.
+            {android
+              ? "Backup Android berupa satu file CSV lengkap yang dapat disimpan di folder pilihanmu."
+              : "Backup desktop berupa folder CSV lengkap dengan manifest.json. Browser mengunduh satu CSV backup lengkap."}{" "}
+            Backup dapat dipulihkan saat offline dalam mode CSV. Pemulihan dalam
+            mode database akan mengubah data Supabase.
           </p>
         </section>
+        <UpdatePanel updates={updates} busy={busy} />
         <section className="panel settings-panel">
           <h3>Aturan operasional</h3>
           <ul className="policy-list">

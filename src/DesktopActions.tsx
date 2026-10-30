@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { LogOut, Minus } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { desktop } from "./storage";
+import { desktop, android } from "./storage";
 import { Modal } from "./ui";
 export function DesktopActions({
   busy,
@@ -17,6 +17,7 @@ export function DesktopActions({
   closeWindow?: () => Promise<void>;
 }) {
   const [confirm, setConfirm] = useState(false);
+  if (android) return null;
   return (
     <>
       <div className="desktop-window-actions">

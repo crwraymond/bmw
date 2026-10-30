@@ -1,0 +1,11 @@
+version: 1
+name: toko-github-updates
+slug: toko-github-updates
+protocol: http
+port: 4512
+origin: github.com
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true

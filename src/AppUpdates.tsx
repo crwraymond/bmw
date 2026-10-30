@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, RefreshCw } from "lucide-react";
-import { desktop } from "./storage";
+import { native, android } from "./storage";
 import { Modal } from "./ui";
 import { version as webVersion } from "../package.json";
 import {
@@ -18,7 +18,7 @@ export type UpdateMaintenance = (
 export function useAppUpdates(
   ready: boolean,
   maintenance: UpdateMaintenance,
-  enabled = desktop,
+  enabled = native,
   runtime: UpdateRuntime = updateRuntime,
 ) {
   const [phase, setPhase] = useState<UpdatePhase>("idle");
@@ -57,7 +57,7 @@ export function useAppUpdates(
       if (!active.current || token !== request.current) return;
       setVersion(info.version);
       if (!info.supported)
-        throw new Error("Pembaruan otomatis tersedia di aplikasi Windows.");
+        throw new Error("Pembaruan tersedia di aplikasi Windows dan Android.");
       if (!info.configured)
         throw new Error(
           "Kunci verifikasi update belum dikonfigurasi pada installer ini.",
@@ -154,6 +154,8 @@ export function UpdatePanel({
     downloading: `Mengunduh update${u.progress === null ? "…" : ` ${u.progress}%`}`,
     installing: "Memasang update. Aplikasi akan dibuka kembali…",
     installed: "Update sudah dipasang.",
+    "awaiting-install":
+      "Lanjutkan pemasangan pada dialog Android. Setelah selesai, buka aplikasi kembali.",
   }[u.phase];
   return (
     <section
@@ -169,8 +171,8 @@ export function UpdatePanel({
       </div>
       {!u.enabled ? (
         <p className="form-note">
-          Cek dan pasang update tersedia di aplikasi desktop Windows. Pratinjau
-          web memakai source lokal.
+          Cek dan pasang update tersedia di aplikasi Windows dan Android.
+          Pratinjau web memakai source lokal.
         </p>
       ) : (
         <>
@@ -219,6 +221,8 @@ export function UpdatePanel({
       <p className="form-note">
         Pemasangan membuat backup data terlebih dahulu dan mempertahankan folder
         data toko. Simpan form yang sedang dikerjakan sebelum memasang.
+        {android &&
+          " Android akan meminta konfirmasi pemasangan APK. Jika izin pemasangan belum aktif, aktifkan pada layar Android lalu kembali dan tekan Pasang update lagi."}
       </p>
       {u.backupPath && (
         <p className="data-path">Backup sebelum update: {u.backupPath}</p>

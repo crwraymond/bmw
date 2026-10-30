@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { android } from "./platform";
 import { check, type DownloadEvent } from "@tauri-apps/plugin-updater";
 export interface UpdateInfo {
   version: string;
@@ -11,6 +12,7 @@ export interface UpdatePackage {
   download: (onEvent: (event: DownloadEvent) => void) => Promise<void>;
   install: () => Promise<void>;
   close: () => Promise<void>;
+  systemConfirmation?: boolean;
 }
 export interface UpdateRuntime {
   info: () => Promise<UpdateInfo>;
@@ -19,7 +21,11 @@ export interface UpdateRuntime {
 }
 export const updateRuntime: UpdateRuntime = {
   info: () => invoke("update_info"),
-  check: () => check({ timeout: 20_000 }),
+  check: async () => {
+    if (!android) return check({ timeout: 20_000 });
+    const { checkAndroidUpdate } = await import("./androidUpdates");
+    return checkAndroidUpdate();
+  },
   backup: (expectedRevision) => invoke("prepare_update", { expectedRevision }),
 };
 export type UpdatePhase =
@@ -31,13 +37,14 @@ export type UpdatePhase =
   | "backing-up"
   | "downloading"
   | "installing"
-  | "installed";
+  | "installed"
+  | "awaiting-install";
 export const installingUpdate = (phase: UpdatePhase) =>
   ["backing-up", "downloading", "installing"].includes(phase);
 export const updateError = (error: unknown) => {
   const text = String(error instanceof Error ? error.message : error);
   if (/404|403|release|valid release|fetch/i.test(text))
-    return "Rilis update belum dapat diakses. Pastikan internet tersambung dan repo BMW sudah public serta memiliki rilis Windows lengkap, lalu coba lagi.";
+    return "Rilis update belum dapat diakses. Pastikan internet tersambung dan rilis GitHub untuk perangkat ini sudah tersedia, lalu coba lagi.";
   return `Update belum bisa dilanjutkan: ${text}`;
 };
 export async function installSafely(
@@ -66,5 +73,5 @@ export async function installSafely(
   // The plugin verifies the signature while downloading and refuses invalid
   // payloads. Windows closes/relaunches the app only after installation starts.
   await update.install();
-  onPhase("installed");
+  onPhase(update.systemConfirmation ? "awaiting-install" : "installed");
 }

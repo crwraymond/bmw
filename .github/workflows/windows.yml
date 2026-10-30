@@ -1,16 +1,34 @@
-name: Build Windows installer
+name: Build desktop and Android
 on:
   push:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
-  group: windows-release
+  group: toko-release
   cancel-in-progress: false
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node --test scripts/release.test.mjs scripts/update-manifests.test.mjs
+      - id: release
+        run: node scripts/prepare-release.mjs
   windows:
+    needs: version
     runs-on: windows-latest
+    env:
+      # Public update packages retain a device's provisioned shop settings.
+      # Never inject the shop capability into public Releases or Actions artifacts.
+      VITE_TOKO_ACCESS_KEY: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,14 +38,10 @@ jobs:
       - name: Install Rust
         shell: pwsh
         run: rustup update stable --no-self-update
-      - name: Dependencies
-        run: npm ci
+      - run: npm ci
       - name: Business rules
         run: npm test
-      - name: Release version tests
-        run: node --test scripts/release.test.mjs
-      - name: Prepare release version
-        id: release
+      - name: Prepare matching release version
         run: node scripts/prepare-release.mjs
       - name: Frontend build
         run: npm run build
@@ -46,34 +60,13 @@ jobs:
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY -or -not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) {
             throw "Configure both Tauri signing secrets before publishing updates."
           }
-      - name: Build signed installer and upload complete draft
-        id: bundle
+      - name: Build signed Windows installer
         uses: tauri-apps/tauri-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ steps.release.outputs.tag }}
-          releaseName: Toko Offline ${{ steps.release.outputs.version }}
-          releaseBody: Pembaruan aplikasi Windows. Data toko disimpan terpisah dari aplikasi dan dicadangkan sebelum pemasangan update.
-          releaseDraft: true
-          prerelease: false
           args: --bundles nsis
-          uploadUpdaterJson: true
-          updaterJsonPreferNsis: true
-          uploadUpdaterSignatures: true
-      - name: Publish only after all assets are uploaded
-        uses: actions/github-script@v7
-        env:
-          RELEASE_ID: ${{ steps.bundle.outputs.releaseId }}
-        with:
-          script: |
-            const release_id = Number(process.env.RELEASE_ID);
-            if (!release_id) throw new Error('Missing completed release');
-            const { data } = await github.rest.repos.listReleaseAssets({ ...context.repo, release_id, per_page: 100 });
-            if (!data.some(a => a.name === 'latest.json') || !data.some(a => a.name.endsWith('-setup.exe')) || !data.some(a => a.name.endsWith('.sig'))) throw new Error('Incomplete signed update assets');
-            await github.rest.repos.updateRelease({ ...context.repo, release_id, draft: false, make_latest: 'true' });
       - uses: actions/upload-artifact@v4
         with:
           name: toko-offline-windows-x64
@@ -81,3 +74,58 @@ jobs:
             src-tauri/target/release/bundle/nsis/*-setup.exe
             src-tauri/target/release/bundle/nsis/*.sig
           if-no-files-found: error
+          retention-days: 14
+  android:
+    needs: version
+    uses: ./.github/workflows/android.yml
+    with:
+      release_run: ${{ github.run_number }}
+    secrets:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+  publish:
+    needs: [version, windows, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: toko-offline-*
+          path: release/packages
+          merge-multiple: true
+      - name: Create platform-specific update manifests
+        env:
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        run: node scripts/create-update-manifests.mjs release/packages "$RELEASE_VERSION"
+      - name: Publish only the complete signed release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const tag = process.env.RELEASE_TAG;
+            const directory = 'release/packages';
+            const names = fs.readdirSync(directory);
+            if (!names.includes('latest.json') || !names.includes('android-latest.json') || !names.some(n => n.endsWith('-setup.exe')) || !names.some(n => n.endsWith('.exe.sig')) || !names.some(n => n.endsWith('-arm64.apk'))) throw new Error('Incomplete release');
+            let release;
+            try { release = (await github.rest.repos.getReleaseByTag({...context.repo, tag})).data; }
+            catch (error) { if (error.status !== 404) throw error; }
+            if (release && !release.draft) throw new Error('Release already published; start a new workflow run for a new version');
+            if (!release) release = (await github.rest.repos.createRelease({...context.repo, tag_name: tag, target_commitish: context.sha, name: `Toko Offline ${process.env.RELEASE_VERSION}`, body: 'Pembaruan Windows dan Android. Konfigurasi serta data toko tetap tersimpan pada perangkat.', draft: true})).data;
+            const old = await github.paginate(github.rest.repos.listReleaseAssets, {...context.repo, release_id: release.id});
+            for (const asset of old) await github.rest.repos.deleteReleaseAsset({...context.repo, asset_id: asset.id});
+            for (const name of names) {
+              const data = fs.readFileSync(path.join(directory, name));
+              await github.rest.repos.uploadReleaseAsset({...context.repo, release_id: release.id, name, data});
+            }
+            const complete = await github.paginate(github.rest.repos.listReleaseAssets, {...context.repo, release_id: release.id});
+            if (names.some(name => !complete.some(asset => asset.name === name && asset.size === fs.statSync(path.join(directory, name)).size))) throw new Error('Release upload incomplete');
+            await github.rest.repos.updateRelease({...context.repo, release_id: release.id, draft: false, make_latest: 'true'});

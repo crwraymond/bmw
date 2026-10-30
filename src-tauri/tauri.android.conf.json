@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Mitra Ecobike",
+        "fullscreen": false,
+        "width": 390,
+        "height": 844,
+        "minWidth": null,
+        "minHeight": null
+      }
+    ]
+  },
+  "bundle": { "android": { "minSdkVersion": 24 } }
+}

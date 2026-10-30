@@ -56,7 +56,14 @@ test("ikon tombol tambah konsisten pada kedua tema dan lokasi tombol keluar jela
     fullPage: true,
   });
 });
-for (const mode of ["ready", "backup", "signature", "private", "current"]) {
+for (const mode of [
+  "ready",
+  "backup",
+  "signature",
+  "private",
+  "current",
+  "android",
+]) {
   test(`alur update ${mode} tidak mengubah data dan menghormati hasil backup/verifikasi`, async ({
     page,
   }) => {
@@ -75,9 +82,7 @@ for (const mode of ["ready", "backup", "signature", "private", "current"]) {
       .getByRole("button", { name: "Cek update", exact: true })
       .click();
     if (mode === "private") {
-      await expect(panel.getByRole("alert")).toContainText(
-        "repo BMW sudah public",
-      );
+      await expect(panel.getByRole("alert")).toContainText("rilis GitHub");
       await expect(
         panel.getByRole("button", { name: "Pasang update", exact: true }),
       ).toHaveCount(0);
@@ -99,9 +104,9 @@ for (const mode of ["ready", "backup", "signature", "private", "current"]) {
       await dialog
         .getByRole("button", { name: "Backup & pasang", exact: true })
         .click();
-      if (mode === "ready") {
+      if (mode === "ready" || mode === "android") {
         await expect(dialog.getByRole("status")).toContainText(
-          "sudah dipasang",
+          mode === "android" ? "dialog Android" : "sudah dipasang",
         );
         expect(await page.evaluate(() => (window as any).updateCalls)).toEqual([
           "check",

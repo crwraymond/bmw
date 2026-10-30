@@ -9,7 +9,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { releaseVersion, prepareRelease } from "./prepare-release.mjs";
+import {
+  releaseVersion,
+  prepareRelease,
+  androidVersionCode,
+} from "./prepare-release.mjs";
 test("each workflow run has an increasing Windows-compatible version", () => {
   assert.equal(releaseVersion("0.2.0", "41"), "0.2.41");
   assert.equal(releaseVersion("0.2.10", "42"), "0.2.52");
@@ -25,6 +29,7 @@ for (const eol of ["\n", "\r\n"])
         "package.json",
         "package-lock.json",
         "src-tauri/tauri.conf.json",
+        "src-tauri/tauri.android.conf.json",
         "src-tauri/Cargo.toml",
         "src-tauri/Cargo.lock",
       ])
@@ -77,3 +82,10 @@ for (const eol of ["\n", "\r\n"])
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+test("Android versions advance beyond the private installer and reject ambiguous codes", () => {
+  assert.equal(androidVersionCode("0.2.0"), 2000);
+  assert.equal(androidVersionCode("0.2.42"), 2042);
+  assert.throws(() => androidVersionCode("0.2.1000"));
+  assert.throws(() => androidVersionCode("2101.0.0"));
+});

@@ -36,7 +36,18 @@ import {
 } from "./types";
 import { cancelDoc, cancelPayment } from "./domain";
 import { deleteDocument, documentPaymentLinks } from "./revisions";
-import { load, persist, desktop, restore } from "./storage";
+import {
+  load,
+  persist,
+  desktop,
+  native,
+  android,
+  restore,
+  storageState,
+  useLocalCSV,
+  loadLocal,
+  backup,
+} from "./storage";
 import { type Commit, Modal, Field } from "./ui";
 import { Dashboard } from "./Dashboard";
 import { Masters } from "./Masters";
@@ -165,7 +176,12 @@ function App() {
       busyRef.current = true;
       setBusy(true);
       try {
-        await action(dbRef.current.revision);
+        if (storageState().mode === "supabase") {
+          if (!(await backup(dbRef.current)))
+            throw new Error("Backup dibatalkan. Update tidak dipasang.");
+          const local = await loadLocal();
+          await action(local.db.revision);
+        } else await action(dbRef.current.revision);
       } finally {
         busyRef.current = false;
         setBusy(false);
@@ -173,6 +189,30 @@ function App() {
     },
     [],
   );
+  const storageAction = async (
+    action: () => Promise<{ db: DB; path: string }>,
+  ) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      const result = await action();
+      dbRef.current = result.db;
+      setDB(result.db);
+      setPath(result.path);
+      setFatal("");
+      setDetail(null);
+      setEditRecord(null);
+      setNewKind(null);
+      setNewNonce((n) => n + 1);
+      notify("Sumber data berhasil dimuat");
+    } catch (e) {
+      notify(String(e instanceof Error ? e.message : e), true);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
   const updates = useAppUpdates(
     Boolean(db) && !locked && !fatal,
     updateMaintenance,
@@ -365,6 +405,14 @@ function App() {
           </p>
           <div className="actions">
             <button onClick={reload}>Coba lagi</button>
+            {storageState().mode === "supabase" && (
+              <button
+                disabled={busy}
+                onClick={() => storageAction(() => useLocalCSV(true))}
+              >
+                Gunakan CSV tersimpan (offline)
+              </button>
+            )}
             <button
               className="primary"
               disabled={busy}
@@ -438,7 +486,13 @@ function App() {
           <div>
             <HardDrive size={17} />
             <span>
-              {desktop ? "Data tersimpan di perangkat" : "Pratinjau web"}
+              {storageState().mode === "supabase"
+                ? "Database Supabase"
+                : desktop
+                  ? "Data tersimpan di perangkat"
+                  : android
+                    ? "CSV lokal Android"
+                    : "Pratinjau web"}
             </span>
           </div>
           <small>
@@ -512,7 +566,11 @@ function App() {
               ? "Menyimpan…"
               : desktop
                 ? "Offline & tersimpan"
-                : "Mode pratinjau"}
+                : storageState().mode === "supabase"
+                  ? "Database online"
+                  : android
+                    ? "Android"
+                    : "Mode pratinjau"}
             <span className="avatar">{db.settings[0].name[0]}</span>
           </div>
         </header>
@@ -573,7 +631,7 @@ function App() {
               </div>
             )}
           </div>
-          {!desktop && (
+          {!native && storageState().mode === "csv" && (
             <div className="preview-banner">
               Pratinjau browser: perubahan tersimpan di browser ini. Aplikasi
               desktop membaca dan menulis CSV lokal secara otomatis.
@@ -623,6 +681,7 @@ function App() {
           )}
           {page === "settings" && (
             <Settings
+              key={storageState().binding}
               updates={updates}
               db={db}
               path={path}
@@ -631,11 +690,16 @@ function App() {
               onRestore={() => ask("restore", "", "Pulihkan backup")}
               onError={(s) => notify(s, true)}
               onNotify={(s) => notify(s)}
+              onStorageAction={storageAction}
             />
           )}
           <footer className="workspace-footer">
             <span>{db.settings[0].name}</span>
-            <span>Catatan usaha tersimpan di perangkat kamu.</span>
+            <span>
+              {storageState().mode === "supabase"
+                ? "Catatan usaha tersimpan di database Supabase."
+                : "Catatan usaha tersimpan di perangkat kamu."}
+            </span>
           </footer>
         </div>
       </main>
@@ -686,7 +750,9 @@ function App() {
             <div className="confirm-body">
               <p>
                 {confirmation.type === "restore"
-                  ? "Data aktif akan diganti oleh backup yang kamu pilih. Pada desktop, data aktif dicadangkan terlebih dahulu."
+                  ? storageState().mode === "supabase"
+                    ? "Data Supabase toko akan diganti dengan backup yang dipilih dan berlaku untuk semua perangkat. Buat backup database terbaru sebelum melanjutkan."
+                    : "Data aktif akan diganti oleh backup yang kamu pilih. Pada desktop, data aktif dicadangkan terlebih dahulu."
                   : confirmation.type === "delete"
                     ? `${confirmation.name}. Dokumen beserta detailnya akan dihapus. Dokumen turunan seperti retur harus dihapus terlebih dahulu jika masih terhubung.`
                     : `${confirmation.name}. Perubahan stok dan saldo akan dihitung ulang sesuai aturan pembatalan.`}

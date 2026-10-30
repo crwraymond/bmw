@@ -193,9 +193,9 @@ test("alur operasional, invoice, backup, dan buka ulang", async ({
   await expect(page.locator(".stats-grid")).toContainText("187");
   await nav(page, "Pengaturan");
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Buat backup" }).click();
+  await page.getByRole("button", { name: "Backup ke CSV" }).click();
   const file = await download;
-  await file.saveAs(info.outputPath("backup.json"));
+  await file.saveAs(info.outputPath("backup.csv"));
   await page
     .getByRole("button", { name: "Pulihkan backup", exact: true })
     .click();
@@ -204,7 +204,7 @@ test("alur operasional, invoice, backup, dan buka ulang", async ({
     .getByRole("dialog")
     .getByRole("button", { name: "Lanjutkan" })
     .click();
-  await (await chooser).setFiles(info.outputPath("backup.json"));
+  await (await chooser).setFiles(info.outputPath("backup.csv"));
   await expect(page.getByRole("status")).toContainText(
     "Backup berhasil dipulihkan",
   );

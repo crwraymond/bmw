@@ -1,0 +1,10 @@
+name: toko-updates
+purpose: Verify the production Android update transport without publishing a GitHub release.
+contract:
+  manifests:
+    windows: latest.json uses the existing signed Tauri updater schema.
+    android: android-latest.json contains version, versionCode, packageId, abi, url, size, sha256, notes, pub_date.
+  downloads: Immutable package URLs under the matching GitHub release tag.
+  failures: Missing release is an error, never a claim that the installed version is current. Invalid size or hash blocks installation.
+  privacy: Public update artifacts contain no shop capability; private initial installer settings are retained on-device.
+verification: scripts/UpdateTransportCheck.java exercises UpdateTransport.java against this simulation.

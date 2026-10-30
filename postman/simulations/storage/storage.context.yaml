@@ -1,0 +1,30 @@
+purpose:
+  stands_in_for: Supabase PostgREST endpoints for the app-owned toko_read and toko_save RPCs.
+  unblocks: Tests for switching CSV/database modes without using operational data or the live project.
+assumptions:
+  - id: storage-switch-after-confirmed-save
+    status: supported
+    claim: The app changes persistent storage mode only after receiving and validating a saved snapshot in the tested successful response scenario.
+    reason: Browser tests exercise the real app and Supabase JS client through a local HTTP stand-in; source unit tests separately cover a verification mismatch boundary.
+    verification: On 2026-10-30 the storage-mode Playwright scenarios passed migration, reload, cloud save, CSV backup, local copy, and conflict refusal. Postman request events confirm the toko_read/toko_save paths ran. These are simulated HTTP results, not live Supabase validation.
+    source: tests/storage-mode.spec.ts; src/storageCloud.test.ts; src/cloud.ts; postman/mocks/supabase/default.js
+    updated_at: '2026-10-30'
+  - id: atomic-revision-write
+    status: supported
+    claim: The SQL RPC rejects a stale revision and rolls back failed FK replacements in the local PostgreSQL tests.
+    reason: This behavior comes from actual SQL execution in a disposable PostgreSQL cluster, not from the stand-in implementation.
+    verification: scripts/test-supabase.py tested wrong-key access, direct table denial, field roundtrip, idempotent retry, stale revision, failed FK rollback, and two concurrent writers; exactly one concurrent write committed. Hosted Supabase execution remains unverified until migration is approved and applied.
+    source: scripts/test-supabase.py; supabase/migrations/002_storage_rpc.sql
+    updated_at: '2026-10-30'
+  - id: hosted-rpc-availability
+    status: supported
+    claim: The hosted Supabase project has the new RPC functions and accepts the installer connection for reading the empty store.
+    reason: Migration 002 was executed through the dashboard after explicit user approval. The real app and Supabase JS client called toko_read and received the uninitialized-store response.
+    verification: On 2026-10-30 the dashboard returned nine tables with RLS enabled and anon direct table access false. The app displayed the expected empty-database message. No operational CSV was uploaded; live production writes remain untested.
+    source: supabase/migrations/002_storage_rpc.sql; supabase/README.md
+    updated_at: '2026-10-30'
+fingerprints:
+  - id: local-storage-tests
+    date: '2026-10-30'
+    commit: null
+    cli: Postman CLI 1.82.0

@@ -1,0 +1,7 @@
+simulation: toko-storage
+routing: path
+mocks:
+  - name: supabase
+    routeKey: supabase
+    origin: pldeedsmovompchrmtsu.supabase.co
+    path: postman/mocks/supabase

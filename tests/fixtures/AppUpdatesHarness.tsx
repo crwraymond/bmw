@@ -14,6 +14,7 @@ const runtime: UpdateRuntime = {
     return {
       version: "0.2.2",
       body: "Perbaikan aplikasi",
+      systemConfirmation: mode === "android",
       close: async () => {},
       download: async (event) => {
         state.updateCalls.push("download");

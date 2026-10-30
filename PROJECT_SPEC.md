@@ -1,5 +1,14 @@
 # Spesifikasi Awal Aplikasi Toko Offline
 
+## Pilihan penyimpanan — keputusan 30 Oktober 2026
+
+Desktop menyediakan **CSV lokal** dan **database Supabase**, serta **Backup ke CSV**. Mode CSV tetap offline; mode Supabase memerlukan internet. Tombol **Sync ke database & gunakan** membuat backup lokal, mengunggah snapshot secara atomik, memverifikasi hasil, lalu menyimpan pilihan database pada perangkat. Pilihan tidak berubah saat sync gagal. Tidak ada fallback otomatis ke CSV.
+
+Saat kembali dari CSV ke database, perubahan lokal hanya diterima jika revisi Supabase masih sama dengan revisi asal CSV. Konflik menghentikan unggahan dan mempertahankan CSV. Perangkat lain dapat memakai **Muat data Supabase** tanpa mengunggah data lokalnya.
+
+Semua installer privat untuk toko yang sama, tanpa halaman login. Koneksi memakai capability toko yang dibundel; pemegang installer dianggap berhak membaca/menulis toko. Capability tidak boleh masuk rilis atau website publik. Rincian konfigurasi, migrasi, backup, dan pengujian: [supabase/README.md](supabase/README.md).
+
+
 Status: draf kebutuhan berdasarkan percakapan, 17 foto aplikasi lama, dan 1 contoh invoice cetak.  
 Tanggal: 25 Oktober 2026.  
 Nama proyek sementara: **Toko Offline**.

@@ -1,0 +1,12 @@
+{
+  "identifier": "android",
+  "description": "Read and save CSV files explicitly selected using the Android document picker",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": [
+    "dialog:allow-save",
+    "dialog:allow-message",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file"
+  ]
+}

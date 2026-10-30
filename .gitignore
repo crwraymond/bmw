@@ -33,3 +33,10 @@ release/
 .env.*
 !/.env.example
 graphify-out/
+
+# Private shared-shop installer configuration
+.env.local
+.env.*.local
+
+# Android release signing material stays on this machine
+.android-signing/

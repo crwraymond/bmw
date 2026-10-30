@@ -2402,3 +2402,55 @@ select {
   margin-top: 14px;
   white-space: normal;
 }
+
+/* Keep phone controls readable and inside the viewport, including short screens. */
+@media screen and (max-width: 650px) {
+  .topbar {
+    gap: 8px;
+  }
+  .breadcrumb {
+    min-width: 0;
+    flex: 1;
+  }
+  .breadcrumb strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .top-status {
+    flex-shrink: 0;
+    gap: 5px;
+  }
+  .modal {
+    max-height: 91dvh;
+  }
+  .stat > strong {
+    overflow-wrap: anywhere;
+  }
+  .settings-panel,
+  .settings-aside,
+  .storage-panel {
+    min-width: 0;
+  }
+  .settings-panel p,
+  .storage-panel p {
+    overflow-wrap: anywhere;
+  }
+  button,
+  .icon-button {
+    min-height: 44px;
+  }
+  .icon-button,
+  .menu-toggle {
+    min-width: 44px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .field-action {
+    min-height: 36px;
+  }
+}

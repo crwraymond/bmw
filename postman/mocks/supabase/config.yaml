@@ -1,0 +1,11 @@
+version: 1
+name: toko-supabase
+slug: toko-supabase
+protocol: http
+port: 4511
+origin: pldeedsmovompchrmtsu.supabase.co
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true
