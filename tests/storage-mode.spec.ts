@@ -14,6 +14,13 @@ test.describe("CSV/database storage with a local Supabase simulation", () => {
       await route.fulfill({ response });
     });
     await page.goto("/");
+    await page.evaluate(() =>
+      localStorage.setItem(
+        "toko-shop-access:4a6943d3-408c-4583-ad26-c7d27e1684f1",
+        "synthetic-storage-simulation-key-000000000",
+      ),
+    );
+    await page.reload();
     await page
       .locator("nav")
       .getByRole("button", { name: "Pengaturan", exact: true })
@@ -88,11 +95,7 @@ test.describe("CSV/database storage with a local Supabase simulation", () => {
     );
     // Explicitly reconnecting reads cloud data without overwriting local CSV.
     await page
-      .getByRole("button", { name: "Muat data Supabase", exact: true })
-      .click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Lanjutkan" })
+      .getByRole("button", { name: "Gunakan database toko", exact: true })
       .click();
     await expect(
       page.getByText("Database Supabase aktif", { exact: true }),

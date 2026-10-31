@@ -232,7 +232,7 @@ export async function persist(db: DB): Promise<DB> {
   if (state.mode === "csv") {
     if (state.pending)
       throw new Error(
-        "Selesaikan percobaan sync sebelumnya sebelum mengubah CSV. Klik Sync ke database lagi atau Muat data Supabase.",
+        "Selesaikan percobaan sync sebelumnya sebelum mengubah CSV. Klik Sync ke database lagi atau Gunakan database toko.",
       );
     return persistLocal(db);
   }
@@ -271,11 +271,11 @@ export async function syncToCloud(db: DB) {
       const existing = await readRemote();
       if (existing)
         throw new Error(
-          "Toko ini sudah memiliki data Supabase. Gunakan Muat data Supabase untuk menghubungkan perangkat; CSV tidak ditimpa.",
+          "Toko ini sudah memiliki data Supabase. Gunakan Gunakan database toko untuk menghubungkan perangkat; CSV tidak ditimpa.",
         );
     } else if (state.csvBaseRevision === undefined) {
       throw new Error(
-        "Asal revisi CSV belum diketahui. Muat data Supabase atau gunakan backup yang sesuai; unggahan dihentikan.",
+        "Asal revisi CSV belum diketahui. Gunakan database toko atau gunakan backup yang sesuai; unggahan dihentikan.",
       );
     }
     request = {

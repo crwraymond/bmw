@@ -29,9 +29,9 @@ Kedua signing secrets Android sudah dikonfigurasi dengan izin eksplisit pemilik 
 
 Repo/rilis GitHub dapat public. Workflow selalu membangun dengan `VITE_TOKO_ACCESS_KEY` kosong dan **tidak pernah menerima capability database toko**. Artifacts pada repo public juga jangan dianggap sebagai tempat penyimpanan rahasia.
 
-Installer awal untuk perangkat toko dibuat dan dikirim secara privat dari konfigurasi lokal. Saat koneksi toko diperiksa/dipakai, installer menyimpan capability pada penyimpanan aplikasi perangkat, terpisah dari aset frontend. Update public mengambil kembali pengaturan tersebut. Pemasangan baru dari paket public tanpa pengaturan perangkat hanya dapat menggunakan CSV lokal dan tidak memperoleh akses toko.
+Installer awal untuk perangkat toko dibuat dan dikirim secara privat dari konfigurasi lokal. Saat koneksi toko diperiksa/dipakai, installer menyimpan capability pada penyimpanan aplikasi perangkat, terpisah dari aset frontend. Update public mengambil kembali pengaturan tersebut. Pemasangan baru dari paket public tanpa pengaturan perangkat dapat menggunakan CSV lokal. Tombol database membuka penghubungan sekali dengan kode/file koneksi dari pemilik toko; kode diverifikasi sebelum disimpan. Setelah itu perangkat dapat membaca database yang sama.
 
-APK awal yang belum mendukung penyimpanan konfigurasi akses dan updater Android perlu diganti manual satu kali dengan APK privat terbaru. Pertahankan data aplikasi saat memasang; jangan uninstall atau hapus storage. Untuk perangkat Windows yang belum pernah dikonfigurasi, gunakan build privat awal dengan `.env.local` sebelum beralih ke paket update public. Backup CSV tidak menyertakan capability perangkat.
+APK awal yang belum mendukung penyimpanan konfigurasi akses dan updater Android perlu diganti manual satu kali dengan APK privat terbaru. Pertahankan data aplikasi saat memasang; jangan uninstall atau hapus storage. Perangkat Windows yang belum pernah dikonfigurasi juga dapat mengimpor file koneksi privat melalui Sumber data. Desktop melakukan sync CSV dahulu, kemudian HP memilih Gunakan database toko. Backup CSV tidak menyertakan capability perangkat.
 
 ## Versi dan validasi
 

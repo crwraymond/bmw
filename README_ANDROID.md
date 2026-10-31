@@ -6,7 +6,7 @@ Android 7.0 atau lebih baru, prosesor ARM64. Kirim APK langsung ke perangkat tok
 ## Data desktop dan HP
 
 1. Pada desktop yang memiliki CSV operasional, buka **Pengaturan → Sumber data**, lalu **Sync ke database & gunakan**. Tunggu sampai berhasil.
-2. Pada HP, buka **Pengaturan → Sumber data → Muat data Supabase**. Semua installer privat ini memakai toko yang sama tanpa login.
+2. Pada HP, buka **Pengaturan → Sumber data → Gunakan database toko**. Jika diminta, impor file atau tempel kode koneksi toko sekali. Setelah itu semua perangkat membaca toko yang sama tanpa login dan tanpa mengunggah CSV kosong HP.
 3. Mode Supabase memerlukan internet. Mode CSV menyimpan data terpisah di perangkat; peralihan kembali ke Supabase memeriksa konflik sebelum mengunggah perubahan.
 4. Tombol **Backup ke CSV** pada Android membuka pemilih lokasi penyimpanan. Pilih lokasi lalu simpan. Hasilnya satu CSV snapshot lengkap, yang dapat dipulihkan di aplikasi. Backup desktop tetap mendukung folder CSV.
 

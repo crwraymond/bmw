@@ -1,4 +1,5 @@
-import { resolveShopAccess } from "./shopAccess";
+import { connectionCode, decodeConnectionCode } from "./shopConnection";
+import { resolveShopAccess, saveShopAccess } from "./shopAccess";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cloudFields } from "./cloudFields";
 import { validateDB, withStoreDefaults } from "./domain";
@@ -21,9 +22,7 @@ let client: SupabaseClient | undefined;
 export function cloudConfigured() {
   return Boolean(publicKey && shopAccessKey() && sharedStoreId);
 }
-export async function cloudClient() {
-  if (!cloudConfigured())
-    throw new Error("Koneksi database belum dikonfigurasi pada installer ini.");
+async function publicCloudClient() {
   if (!client) {
     const { createClient } = await import("@supabase/supabase-js");
     client ??= createClient(defaultProjectUrl, publicKey, {
@@ -40,6 +39,33 @@ export async function cloudClient() {
   }
   return client;
 }
+export async function cloudClient() {
+  if (!cloudConfigured())
+    throw new Error(
+      "Hubungkan perangkat ke toko terlebih dahulu melalui Pengaturan → Sumber data.",
+    );
+  return publicCloudClient();
+}
+export function exportShopConnection() {
+  const accessKey = shopAccessKey();
+  if (!accessKey) throw new Error("Perangkat ini belum terhubung ke toko.");
+  return connectionCode({ storeId: sharedStoreId, accessKey });
+}
+export async function configureShopConnection(code: string) {
+  const candidate = decodeConnectionCode(code, sharedStoreId);
+  // Verify read access before storing credentials. This never creates a store,
+  // uploads local CSV, or modifies operational data.
+  const { data, error } = await (
+    await publicCloudClient()
+  ).rpc("toko_read", {
+    p_store_id: candidate.storeId,
+    p_access_key: candidate.accessKey,
+  });
+  if (error) throw cloudError(error);
+  if (data !== null && decodeRemote(data).store_id !== candidate.storeId)
+    throw new Error("Koneksi database mengembalikan toko yang berbeda.");
+  saveShopAccess(candidate.storeId, candidate.accessKey);
+}
 export class CloudRequestError extends Error {
   constructor(
     message: string,
@@ -51,12 +77,12 @@ export class CloudRequestError extends Error {
 export function cloudError(error: { message: string; code?: string }) {
   if (/REVISION_CONFLICT|PT409|40001/.test(`${error.code} ${error.message}`))
     return new CloudRequestError(
-      "Data Supabase sudah berubah di perangkat lain. Unggahan dihentikan; data lokal tetap utuh. Muat data Supabase atau ekspor CSV untuk membandingkan perubahan.",
+      "Data Supabase sudah berubah di perangkat lain. Unggahan dihentikan; data lokal tetap utuh. Gunakan database toko atau ekspor CSV untuk membandingkan perubahan.",
       error.code,
     );
   if (/STORE_NOT_FOUND_OR_ALREADY_EXISTS/.test(error.message))
     return new CloudRequestError(
-      "Data toko sudah tersedia atau koneksi installer tidak sesuai. Gunakan Muat data Supabase; jangan menimpa data yang sudah ada.",
+      "Data toko sudah tersedia atau koneksi installer tidak sesuai. Gunakan Gunakan database toko; jangan menimpa data yang sudah ada.",
       error.code,
     );
   if (/PGRST202|42883/.test(error.code || ""))

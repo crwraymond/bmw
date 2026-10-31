@@ -17,7 +17,7 @@ http.createServer(async (req, res) => {
   }
   if (req.method !== 'POST' || !['/rest/v1/rpc/toko_read','/rest/v1/rpc/toko_save'].includes(req.url))
     return reply(501, { message: 'Endpoint outside this simulation contract' });
-  if (!body.p_access_key || !body.p_store_id || !req.headers.apikey) return reply(403, {code:'42501', message:'STORE_ACCESS_DENIED'});
+  if (!body.p_access_key || body.p_access_key === 'denied-connection-key-000000000000000' || !body.p_store_id || !req.headers.apikey) return reply(403, {code:'42501', message:'STORE_ACCESS_DENIED'});
   const store = await pm.state.get(key);
   if (req.url.endsWith('/toko_read')) return reply(200, store || null);
   if (store && store.last_write_id === body.p_write_id && store.db.revision === body.p_expected_revision + 1) return reply(200, store);

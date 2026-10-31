@@ -23,3 +23,9 @@ it("a fresh public installer cannot access the shop or another shop's settings",
   resolveShopAccess("store-one", "test-shop-capability");
   expect(resolveShopAccess("other-store", "")).toBe("");
 });
+it("an explicitly configured device key is preserved over older bundled settings", () => {
+  localStorage.setItem("toko-shop-access:store-one", "verified-device-key");
+  expect(resolveShopAccess("store-one", "older-installer-key")).toBe(
+    "verified-device-key",
+  );
+});

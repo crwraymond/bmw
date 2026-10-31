@@ -1,6 +1,6 @@
 # Pilihan CSV / Supabase untuk satu toko
 
-Semua installer yang dibagikan menggunakan toko yang sama tanpa halaman login. Installer membawa capability toko acak 256 bit. Memiliki installer atau hasil build berarti memiliki akses baca/tulis toko; jangan memublikasikan build sebagai website umum. Tidak ada service-role key di aplikasi.
+Semua perangkat toko menggunakan database yang sama tanpa halaman login. Installer awal privat dapat membawa capability toko acak 256 bit. Build GitHub public memakai konfigurasi perangkat yang disimpan sebelumnya atau dihubungkan sekali melalui kode/file koneksi dari pemilik toko. Tidak ada service-role key di aplikasi.
 
 ## Konfigurasi build
 
@@ -10,14 +10,23 @@ Semua installer yang dibagikan menggunakan toko yang sama tanpa halaman login. I
 - `VITE_TOKO_PUBLIC_KEY`: publishable key Supabase, aman untuk frontend.
 - `VITE_TOKO_ACCESS_KEY`: capability toko yang sama pada semua perangkat. Database hanya menyimpan hash SHA-256-nya.
 
-Jangan mengganti capability tanpa memperbarui hash database dan membangun ulang installer. Pencabutan capability berlaku untuk semua installer lama sekaligus. Bangun installer privat secara lokal dengan konfigurasi ini. Workflow rilis publik yang sudah ada sengaja tidak diberi capability: jangan memasukkannya ke build/rilis/website publik. Tanpa konfigurasi, aplikasi tetap bekerja dengan CSV dan tombol database nonaktif.
+Jangan mengganti capability tanpa memperbarui hash database dan membangun ulang installer. Pencabutan capability berlaku untuk semua installer lama sekaligus. Bangun installer privat secara lokal dengan konfigurasi ini. Workflow rilis publik yang sudah ada sengaja tidak diberi capability: jangan memasukkannya ke build/rilis/website publik. Tanpa konfigurasi, tombol database tetap aktif dan membuka penghubungan perangkat. Kode/file koneksi diverifikasi dengan RPC toko_read sebelum disimpan; kode salah tidak mengubah konfigurasi atau CSV.
 
 ## Migrasi database
 
 1. `001_initial_schema.sql` sudah dipasang pada proyek Toko Offline. Jangan jalankan ulang di proyek tersebut.
 2. `002_storage_rpc.sql` menambahkan akses toko melalui RPC dan satu identitas toko kosong. Ini tidak mengunggah data operasional. Tabel tetap RLS tanpa policy serta tanpa grant langsung untuk anon/authenticated. RPC SECURITY DEFINER memakai search_path kosong dan selalu memeriksa capability sebelum membaca/menulis.
 3. Pengguna memilih **Sync ke database & gunakan** di Pengaturan. Aplikasi membuat backup CSV, mengirim satu snapshot lengkap dalam transaksi, memeriksa hasilnya, kemudian menyimpan pilihan Supabase pada perangkat itu.
-4. Perangkat lain memilih **Muat data Supabase**; CSV-nya tidak diunggah atau menimpa database.
+4. Perangkat lain memilih **Gunakan database toko**; CSV-nya tidak diunggah atau menimpa database.
+
+## Penghubungan perangkat sekali
+
+1. Perangkat yang sudah terhubung dapat membuka **Pengaturan → Sumber data → Hubungkan perangkat lain**, lalu menyalin kode koneksi. Pemilik toko juga dapat memberikan file koneksi `.txt` secara privat.
+2. Pada desktop dengan CSV operasional, pilih **Sync ke database & gunakan**. Jika koneksi belum disimpan, impor file atau tempel kode dahulu, lalu konfirmasikan sync. Konfigurasi dapat diverifikasi sebelum database pertama kali diisi.
+3. Setelah sync desktop berhasil, pada HP pilih **Gunakan database toko**. Jika belum terhubung, impor file/tempel kode sekali. Aplikasi langsung membaca snapshot terbaru; CSV HP tidak dikirim dan tidak menginisialisasi toko kosong.
+4. Pilihan database serta koneksi tersimpan untuk pembukaan aplikasi dan update berikutnya. Perangkat yang kehilangan konfigurasi saat mode database aktif dapat memilih **Hubungkan kembali database** tanpa mereset data.
+
+Kode koneksi berisi capability yang sama dengan installer privat. Bagikan hanya ke perangkat toko; jangan unggah file koneksi ke source, Actions artifacts, atau Releases public. Tidak ada perubahan skema/RPC database yang dibutuhkan oleh alur ini.
 
 ## Perpindahan dan konflik
 
@@ -26,7 +35,7 @@ Jangan mengganti capability tanpa memperbarui hash database dan membangun ulang 
 - **Gunakan CSV tersimpan (offline)**: buka salinan lokal yang sudah ada secara eksplisit. Salinan mungkin lama; revisi asal tetap dipertahankan.
 - **Sync ke database & gunakan** setelah mengedit CSV: unggah hanya jika revisi database masih sama dengan revisi asal CSV. Jika berbeda, hentikan; CSV tidak dihapus. Tidak ada merge otomatis atau tombol paksa timpa.
 - Kegagalan jaringan setelah commit bisa ambigu: migrasi menyimpan write ID dan mengulang request identik dengan ID yang sama. Editor lokal diblokir selama hasil request ambigu agar retry tidak mengirim payload berbeda.
-- Mode disimpan per perangkat dalam localStorage WebView/browser. Pembersihan data WebView menghapus pilihan mode; data cloud dan file CSV tetap tersedia. Pilih **Muat data Supabase** untuk menyambung kembali.
+- Mode disimpan per perangkat dalam localStorage WebView/browser. Pembersihan data WebView menghapus pilihan mode; data cloud dan file CSV tetap tersedia. Pilih **Gunakan database toko** untuk menyambung kembali.
 
 ## Backup dan pemulihan
 

@@ -1,3 +1,5 @@
+import { ConnectionSetup } from "./StoreConnection";
+import { cloudConfigured } from "./cloud";
 import { refreshInvoiceProfile } from "./domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -163,6 +165,7 @@ function App() {
     } | null>(null),
     [reason, setReason] = useState("");
   const [confirmationError, setConfirmationError] = useState("");
+  const [connectionSetup, setConnectionSetup] = useState(false);
   const [deletePayments, setDeletePayments] = useState(false);
   const paymentLinks =
     db && confirmation?.type === "delete"
@@ -405,6 +408,12 @@ function App() {
           </p>
           <div className="actions">
             <button onClick={reload}>Coba lagi</button>
+            {storageState().mode === "supabase" && !cloudConfigured() && (
+              <button onClick={() => setConnectionSetup(true)}>
+                Hubungkan kembali database
+              </button>
+            )}
+
             {storageState().mode === "supabase" && (
               <button
                 disabled={busy}
@@ -421,6 +430,15 @@ function App() {
               Pilih backup untuk pemulihan
             </button>
           </div>
+          {connectionSetup && (
+            <ConnectionSetup
+              onClose={() => setConnectionSetup(false)}
+              onReady={() => {
+                setConnectionSetup(false);
+                void reload();
+              }}
+            />
+          )}
         </div>
         {toast}
       </div>
@@ -564,10 +582,10 @@ function App() {
             <i />
             {busy
               ? "Menyimpan…"
-              : desktop
-                ? "Offline & tersimpan"
-                : storageState().mode === "supabase"
-                  ? "Database online"
+              : storageState().mode === "supabase"
+                ? "Database online"
+                : desktop
+                  ? "Offline & tersimpan"
                   : android
                     ? "Android"
                     : "Mode pratinjau"}
