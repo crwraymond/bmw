@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import { androidVersionCode } from "./prepare-release.mjs";
 export function createManifests(directory, version, repo = "crwraymond/bmw") {
@@ -19,6 +26,23 @@ export function createManifests(directory, version, repo = "crwraymond/bmw") {
     !Buffer.from(signature, "base64").toString().includes("untrusted comment:")
   )
     throw new Error("Invalid Tauri signature");
+  // GitHub rewrites spaces and other special characters in uploaded names.
+  // Rename the signed installer and its signature together before publishing
+  // so local verification and manifest URLs use the exact remote asset names.
+  const installer = `Toko-Offline-${version}-x64-setup.exe`;
+  if (exe[0] !== installer) {
+    if (
+      [installer, installer + ".sig"].some((name) =>
+        existsSync(resolve(directory, name)),
+      )
+    )
+      throw new Error("Canonical Windows release filename already exists");
+    renameSync(resolve(directory, exe[0]), resolve(directory, installer));
+    renameSync(
+      resolve(directory, exe[0] + ".sig"),
+      resolve(directory, installer + ".sig"),
+    );
+  }
   const base = `https://github.com/${repo}/releases/download/v${version}/`;
   const notes =
     "Pembaruan aplikasi toko. Data dan pengaturan perangkat dipertahankan.";
@@ -28,7 +52,7 @@ export function createManifests(directory, version, repo = "crwraymond/bmw") {
     notes,
     pub_date,
     platforms: {
-      "windows-x86_64": { signature, url: base + encodeURIComponent(exe[0]) },
+      "windows-x86_64": { signature, url: base + installer },
     },
   };
   const android = {

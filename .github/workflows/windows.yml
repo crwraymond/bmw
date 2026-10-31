@@ -127,5 +127,10 @@ jobs:
               await github.rest.repos.uploadReleaseAsset({...context.repo, release_id: release.id, name, data});
             }
             const complete = await github.paginate(github.rest.repos.listReleaseAssets, {...context.repo, release_id: release.id});
-            if (names.some(name => !complete.some(asset => asset.name === name && asset.size === fs.statSync(path.join(directory, name)).size))) throw new Error('Release upload incomplete');
+            const mismatches = names.flatMap(name => {
+              const expected = fs.statSync(path.join(directory, name)).size;
+              const actual = complete.find(asset => asset.name === name);
+              return actual?.state === 'uploaded' && actual.size === expected ? [] : [`${name}: expected ${expected} bytes, remote ${actual ? `${actual.name} (${actual.size} bytes, ${actual.state})` : 'missing'}`];
+            });
+            if (mismatches.length) throw new Error(`Release upload incomplete: ${mismatches.join('; ')}`);
             await github.rest.repos.updateRelease({...context.repo, release_id: release.id, draft: false, make_latest: 'true'});
