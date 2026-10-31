@@ -1949,19 +1949,19 @@ td input {
   }
   .report-note {
     margin: 0 0 14px;
+    font-size: 12px;
+    line-height: 1.4;
   }
-  .report-section td {
-    font-size: calc(10px + var(--ui-font-increase, 0px));
+  .report-section :is(th, td) {
+    padding: 7px 8px;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: normal;
+    overflow-wrap: break-word;
   }
   .report-section .wrap {
     max-width: none;
-  }
-  .report-section[data-report="stock"] :is(th, td) {
-    padding: 3px 6px;
-    font-size: calc(10px + var(--ui-font-increase, 0px));
-    line-height: 1.25;
-  }
-  .report-section[data-report="stock"] .wrap {
     min-width: 0;
   }
   .report-section[data-report="customers"] table {
