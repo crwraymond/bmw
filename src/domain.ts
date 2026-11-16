@@ -232,13 +232,15 @@ export function saleStockLimit(db: DB, doc: Doc, itemId: string) {
   const original = db.documents.find(
     (d) => d.id === doc.id && d.kind === "sale" && d.status === "final",
   );
-  if (!original) return Math.max(0, stock(db, itemId).qty);
 
   // Match revision replay: remove the original sale, then reserve enough stock
   // at its edited date and every later movement. Later receipts cannot fund it.
   const ordered = [
     ...activeDocs(db).filter((d) => d.id !== doc.id && !isOrder(d.kind)),
-    { ...doc, seq: original.seq },
+    {
+      ...doc,
+      seq: original?.seq ?? Math.max(0, ...db.documents.map((d) => d.seq)) + 1,
+    },
   ].sort((a, b) => a.date.localeCompare(b.date) || a.seq - b.seq);
   let available = db.items.find((i) => i.id === itemId)?.openingQty ?? 0;
   let limit = Infinity;

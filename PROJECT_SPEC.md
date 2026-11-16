@@ -227,6 +227,8 @@ Terlihat pada foto 1:
 
 Usulan alur: masukkan nomor faktur dan tanggal → tentukan pemasok bila diperlukan → tambah baris barang → hitung total → sahkan pembelian → tambah stok dan catat kewajiban sesuai aturan pembayaran.
 
+Keputusan pengguna 16 November 2026: pembelian dan penjualan dapat dimasukkan dengan tanggal lampau meskipun sudah ada transaksi yang lebih baru. Sistem menghitung ulang HPP dan mutasi berikutnya menurut tanggal, menjaga pembayaran/SN, serta menolak seluruh penyimpanan bila stok historis tidak mencukupi. Tanggal masa depan tetap mengikuti validasi yang berlaku.
+
 Kolom pemasok tidak terlihat pada foto 1. Relasi ke pemasok adalah kebutuhan yang diusulkan untuk mendukung Hutang Pabrik dan Pelunasan Pabrik.
 
 **Discount Pembelian** terlihat sebagai menu Ubah Data pada foto 13. Belum diketahui apakah diskon berlaku per barang, per faktur, persentase, nominal, atau potongan pembayaran. Rumus dan pengaruhnya pada biaya barang harus ditentukan sebelum implementasi.
@@ -339,7 +341,7 @@ Usulan tambahan: **Simpan PDF** untuk arsip atau pengiriman manual. Mekanisme ce
 
 #### Persyaratan tata letak
 
-- Orientasi portrait mengikuti contoh. Ukuran kertas belum diketahui; A4 portrait menjadi usulan awal yang perlu dicek dengan kertas/printer pengguna.
+- Keputusan pengguna 16 November 2026: setiap invoice memakai setengah A4 landscape. Dua salinan (invoice normal/lunas dan COPY) disusun atas–bawah pada satu lembar A4 portrait. Invoice panjang dilanjutkan ke bagian/lembar berikutnya tanpa memotong data, dengan penanda COPY pada setiap bagian COPY.
 - Hasil cetak hanya berisi invoice, tanpa sidebar, tombol, menu aplikasi, atau status penyimpanan.
 - Gunakan latar putih, teks hitam, garis tabel tipis, dan warna pada logo/cap sesuai kebutuhan.
 - Jumlah, harga satuan, subtotal, dan grand total tertata serta terbaca; format contoh memakai Rupiah dengan titik pemisah ribuan.

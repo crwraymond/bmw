@@ -1332,7 +1332,7 @@ td input {
 }
 .print-pages {
   display: flex;
-  align-items: center;
+  align-items: safe center;
   flex-direction: column;
   padding: 30px;
   gap: 30px;
@@ -1350,7 +1350,7 @@ td input {
   border: 1px solid #000;
   box-shadow: 0 3px 20px #28445420;
   font-family: Arial, sans-serif;
-  font-size: calc(13px + var(--ui-font-increase, 0px));
+  font-size: 11px;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
@@ -1361,11 +1361,11 @@ td input {
   grid-template-columns: 52.8% 47.2%;
 }
 .invoice-brand {
-  height: 22.4mm;
+  height: 8mm;
   border-bottom: 1px solid #000;
 }
 .invoice-brand > div:first-child {
-  padding: 3mm;
+  padding: 1mm 3mm;
   display: flex;
   align-items: center;
   font-size: calc(22px + var(--ui-font-increase, 0px));
@@ -1374,14 +1374,14 @@ td input {
 }
 .invoice-brand img {
   display: block;
-  width: 57mm;
+  width: 40mm;
   max-width: 100%;
-  height: 16.2mm;
+  height: 6mm;
   object-fit: contain;
   object-position: left center;
 }
 .invoice-title {
-  min-height: 14.5mm;
+  min-height: 7mm;
   border-bottom: 1px solid #000;
 }
 .invoice-title h1 {
@@ -1391,7 +1391,7 @@ td input {
   justify-content: center;
   border-right: 1px solid #000;
   font-family: Arial, sans-serif;
-  font-size: calc(34px + var(--ui-font-increase, 0px));
+  font-size: 20px;
   letter-spacing: 0;
   color: #000;
   font-weight: bold;
@@ -1400,25 +1400,25 @@ td input {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2mm;
+  padding: 0.5mm;
 }
 .invoice-partner-logo img {
-  width: 47mm;
+  width: 35mm;
   max-width: 100%;
-  height: 9.5mm;
+  height: 6mm;
   object-fit: contain;
 }
 .invoice-meta {
-  min-height: 35.8mm;
+  min-height: 0;
   border-bottom: 1px solid #000;
 }
 .invoice-meta > section {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 4px 5px 8px;
+  gap: 0;
+  padding: 2px 5px;
   white-space: pre-wrap;
-  line-height: 1.4;
+  line-height: 1.2;
   min-width: 0;
 }
 .invoice-meta > section:first-child {
@@ -1436,18 +1436,20 @@ td input {
   line-height: inherit;
 }
 .invoice-account {
+  display: grid;
+  grid-template-columns: 52.8% 47.2%;
   border-bottom: 1px solid #000;
   white-space: pre-wrap;
-  line-height: 1.4;
+  line-height: 1.2;
 }
 .invoice-account > b,
 .invoice-account > strong,
 .invoice-account > p {
   display: block;
   margin: 0;
-  min-height: 5.8mm;
+  min-height: 0;
   border-bottom: 0;
-  padding: 2px 3px;
+  padding: 1px 3px;
 }
 .invoice-account > p:last-child {
   border-bottom: 0;
@@ -1456,7 +1458,7 @@ td input {
   width: 100%;
   table-layout: fixed;
   font-family: Arial, sans-serif;
-  font-size: calc(13px + var(--ui-font-increase, 0px));
+  font-size: 11px;
   color: #000;
   margin: 0;
   border-collapse: collapse;
@@ -1464,27 +1466,27 @@ td input {
 .invoice .invoice-table th,
 .invoice .invoice-table td {
   border: 1px solid #000;
-  padding: 2px 4px;
-  font-size: calc(13px + var(--ui-font-increase, 0px));
+  padding: 1px 3px;
+  font-size: 11px;
   color: #000;
   white-space: normal;
   vertical-align: middle;
   line-height: 1.2;
-  height: 5.8mm;
+  height: 4.2mm;
   font-weight: normal;
   background: #fff;
 }
 .invoice .invoice-table th {
   font-weight: bold;
   text-align: center;
-  height: 5.8mm;
+  height: 4.2mm;
 }
 .invoice .invoice-table td:first-child,
 .invoice .invoice-table td:nth-child(4) {
   text-align: center;
 }
 .invoice .invoice-table .serial-cell {
-  font-size: calc(10.5px + var(--ui-font-increase, 0px));
+  font-size: 9.5px;
   line-height: 1.1;
   text-align: center;
   white-space: pre-wrap;
@@ -1495,7 +1497,7 @@ td input {
 }
 .invoice-product-discount {
   display: block;
-  font-size: calc(10.5px + var(--ui-font-increase, 0px));
+  font-size: 9.5px;
   margin-top: 2px;
   color: #333;
 }
@@ -1517,13 +1519,13 @@ td input {
   font-weight: bold;
 }
 .invoice .invoice-table tfoot td {
-  height: 5.8mm;
+  height: 4.2mm;
 }
 .invoice-money {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 3px;
+  gap: 0;
   white-space: nowrap;
 }
 .invoice-money > span:last-child {
@@ -1537,20 +1539,23 @@ td input {
   min-height: 4.9mm;
   border-bottom: 1px solid #000;
   padding: 1px 3px;
-  font-size: calc(12px + var(--ui-font-increase, 0px));
+  font-size: 10px;
   line-height: 1.25;
   white-space: pre-wrap;
 }
 .invoice-warranty {
-  padding: 4.5mm 3px 3mm;
+  padding: 2px 3px;
   border-bottom: 1px solid #000;
-  font-size: calc(12px + var(--ui-font-increase, 0px));
+  font-size: 10px;
   line-height: 1.25;
 }
 .invoice-warranty > b {
-  font-size: calc(13px + var(--ui-font-increase, 0px));
+  font-size: 11px;
 }
 .warranty-text {
+  column-count: 2;
+  column-gap: 4mm;
+  font-size: 9.5px;
   margin-top: 2px;
   white-space: pre-wrap;
 }
@@ -1559,44 +1564,47 @@ td input {
 }
 .invoice-footer {
   position: relative;
-  display: block;
-  min-height: 58mm;
+  display: grid;
+  grid-template-columns: 70% 30%;
+  min-height: 0;
   margin: 0;
   break-inside: avoid;
 }
 .invoice-bank {
-  min-height: 30mm;
-  padding: 3mm 3px 2mm;
-  border-bottom: 1px solid #000;
-  font-size: calc(11.8px + var(--ui-font-increase, 0px));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 3mm;
+  min-height: 0;
+  padding: 2px 4px;
+  font-size: 10px;
   line-height: 1.25;
   white-space: pre-wrap;
 }
 .invoice-bank p {
-  max-width: 70%;
+  max-width: 100%;
   margin: 0;
 }
 .invoice-signature {
-  min-height: 28mm;
-  padding: 2px 3px;
+  min-height: 12mm;
+  padding: 1px 3px;
   display: flex;
   align-items: flex-end;
-  font-size: calc(11.8px + var(--ui-font-increase, 0px));
+  font-size: 10px;
 }
 .invoice-signature p {
   margin: 0;
 }
 .copy-stamp {
   position: absolute;
-  right: 34mm;
-  bottom: 15mm;
-  width: 67mm;
-  height: 35mm;
+  right: 8mm;
+  bottom: 9mm;
+  width: 40mm;
+  height: 15mm;
   border: 2.5px solid #b45858;
   color: white;
   -webkit-text-stroke: 1.4px #b45858;
   font-family: Arial, sans-serif;
-  font-size: calc(79px + var(--ui-font-increase, 0px));
+  font-size: 40px;
   line-height: 1;
   font-weight: 500;
   display: flex;
@@ -1608,8 +1616,8 @@ td input {
   letter-spacing: 1px;
 }
 .invoice-footer.continuation {
-  min-height: 38mm;
-  padding: 3mm;
+  min-height: 8mm;
+  padding: 1mm 3mm;
 }
 .continued {
   font-size: calc(10px + var(--ui-font-increase, 0px));
@@ -1915,7 +1923,15 @@ td input {
     max-width: 100%;
     min-height: 0;
     padding: 0;
+    break-after: auto;
+    break-inside: avoid;
+  }
+  .invoice-paper {
     break-after: page;
+    break-inside: avoid;
+  }
+  .invoice-paper:last-child {
+    break-after: auto;
   }
   .invoice:last-child {
     break-after: auto;
@@ -2105,9 +2121,18 @@ select {
     flex: auto;
   }
 }
+.invoice-paper {
+  display: grid;
+  grid-template-rows: repeat(2, 135mm);
+  gap: 5mm;
+  width: 190mm;
+  flex-shrink: 0;
+}
 .invoice {
   display: flex;
   flex-direction: column;
+  min-height: 135mm;
+  align-self: start;
 }
 .invoice > * {
   flex-shrink: 0;
@@ -2116,13 +2141,13 @@ select {
   flex: 0 0 auto;
 }
 .invoice-footer {
-  margin-top: 0;
+  margin-top: auto;
 }
 @media print {
   .invoice {
     width: 190mm;
     max-width: 100%;
-    min-height: 0;
+    min-height: 135mm;
   }
 }
 
@@ -2453,4 +2478,10 @@ select {
   .field-action {
     min-height: 36px;
   }
+}
+
+.modal .toast {
+  left: 50%;
+  width: min(640px, calc(100vw - 32px));
+  box-sizing: border-box;
 }

@@ -16,6 +16,8 @@ import {
   paid,
   returnedValue,
   saveDoc,
+  savePayment,
+  nextNumber,
   saveItem,
   saveParty,
   validateDB,
@@ -181,6 +183,46 @@ export function recalculate(seed: DB, changedId = ""): DB {
   validateSettlements(work);
   validateDB(work);
   return work;
+}
+export function saveDocument(
+  db: DB,
+  input: Doc,
+  lines: Line[],
+  final: boolean,
+) {
+  const backdated =
+    final &&
+    !isOrder(input.kind) &&
+    activeDocs(db).some((d) => !isOrder(d.kind) && d.date > input.date);
+  if (!backdated) return saveDoc(db, input, lines, final);
+
+  const work = structuredClone(db);
+  saveDoc(work, input, lines, false);
+  const staged = work.documents.find((d) => d.id === input.id)!;
+  staged.status = "final";
+  staged.seq = Math.max(0, ...db.documents.map((d) => d.seq)) + 1;
+  work.audit = structuredClone(db.audit);
+  // Replay on a copy so a historical stock or SN conflict cannot partly save.
+  const result = recalculate(work, input.id);
+  const saved = result.documents.find((d) => d.id === input.id)!;
+  if (saved.kind === "sale" && saved.downPayment > 0)
+    savePayment(
+      result,
+      {
+        id: uid(),
+        number: nextNumber(result, "payment"),
+        date: saved.date,
+        partyId: saved.partyId,
+        amount: saved.downPayment,
+        direction: "in",
+        notes: `Uang muka ${saved.number}`,
+        sourceDocId: saved.id,
+        status: "final",
+      },
+      [{ docId: saved.id, amount: saved.downPayment }],
+    );
+  audit(result, "Sahkan dokumen", saved.number, saved.kind);
+  Object.assign(db, result);
 }
 export function reviseDocument(db: DB, input: Doc, inputLines: Line[]) {
   const old = db.documents.find((d) => d.id === input.id);

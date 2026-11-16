@@ -9,7 +9,7 @@ import {
   serialList,
   serialKey,
 } from "./serialInventory";
-import { reviseDocument } from "./revisions";
+import { reviseDocument, saveDocument } from "./revisions";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, Trash2, Eye, Pencil, Printer, Copy } from "lucide-react";
 import {
@@ -29,7 +29,6 @@ import {
   linesOf,
   newDoc,
   newLine,
-  saveDoc,
   isOrder,
   isReturn,
   partyKind,
@@ -421,7 +420,7 @@ export function Editor({
         (d) =>
           initial.status === "final"
             ? reviseDocument(d, doc, lines)
-            : saveDoc(d, doc, lines, final),
+            : saveDocument(d, doc, lines, final),
         initial.status === "final"
           ? "Perubahan dokumen tersimpan"
           : final

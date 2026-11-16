@@ -25,7 +25,7 @@ class PrintPlugin(private val host: Activity) : Plugin(host) {
                 val webView = currentWebView ?: error("Halaman invoice belum siap")
                 val manager = host.getSystemService(Context.PRINT_SERVICE) as PrintManager
                 val attributes = PrintAttributes.Builder()
-                    .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                    .setMediaSize(PrintAttributes.MediaSize.ISO_A4.asPortrait())
                     .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
                     .build()
                 manager.print("Invoice Toko Offline", webView.createPrintDocumentAdapter("Invoice Toko Offline"), attributes)

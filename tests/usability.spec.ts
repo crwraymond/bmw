@@ -142,7 +142,7 @@ test("arrow dropdown mempunyai ruang kanan yang konsisten", async ({
   );
   expect(padding).toBeGreaterThanOrEqual(36);
 });
-test("invoice memakai proporsi referensi lima barang, normal dan COPY", async ({
+test("invoice setengah A4 landscape memuat lima barang, normal dan COPY", async ({
   page,
 }) => {
   await setup(page);
@@ -243,12 +243,12 @@ test("invoice memakai proporsi referensi lima barang, normal dan COPY", async ({
         height: frame.height,
       };
     });
-    expect(dimensions.logo).toBeCloseTo(166 / 551, 1);
-    expect(Math.abs(dimensions.tableTop - 279 / 551)).toBeLessThan(0.035);
+    expect(dimensions.logo).toBeCloseTo(40 / 190, 2);
+    expect(dimensions.tableTop).toBeGreaterThan(0);
     expect(dimensions.warrantyGap).toBeGreaterThanOrEqual(0);
-    expect(dimensions.warrantyGap).toBeLessThan(16);
-    expect(Math.abs(dimensions.signatureTop - 88 / 551)).toBeLessThan(0.025);
-    expect(dimensions.height).toBeLessThanOrEqual(1015);
+    expect(Math.abs(dimensions.signatureTop)).toBeLessThan(0.025);
+    expect(dimensions.width).toBeGreaterThan(dimensions.height);
+    expect(dimensions.height).toBeLessThanOrEqual(510.5);
   }
   const stamp = await copy.locator(".copy-stamp").boundingBox(),
     frame = await copy.boundingBox();

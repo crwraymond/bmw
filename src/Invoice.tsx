@@ -15,6 +15,7 @@ function InvoiceMoney({ value }: { value: number }) {
     </div>
   );
 }
+const halfPageHeight = (135 * 96) / 25.4 + 0.25;
 type Sheet = {
   lines: Line[];
   warranty: string;
@@ -70,6 +71,7 @@ function InvoicePages({
     },
   ]);
   const [overflow, setOverflow] = useState(false);
+  const [layoutVersion, setLayoutVersion] = useState(0);
   const refs = useRef<(HTMLElement | null)[]>([]);
   const variants = mode === "both" ? [false, true] : [mode === "copy"];
   const totalPaid = paid(db, doc.id);
@@ -80,7 +82,8 @@ function InvoicePages({
   const hasDeductions = totalPaid > 0 || returns > 0;
   useLayoutEffect(() => {
     const index = sheets.findIndex(
-      (_, i) => (refs.current[i]?.getBoundingClientRect().height || 0) > 1015,
+      (_, i) =>
+        (refs.current[i]?.getBoundingClientRect().height || 0) > halfPageHeight,
     );
     if (index < 0) {
       setOverflow(false);
@@ -130,7 +133,13 @@ function InvoicePages({
         ...sheets.slice(index + 1),
       ]);
     else setOverflow(true);
-  }, [sheets]);
+  }, [sheets, layoutVersion]);
+  const slots = sheets.flatMap((sheet, i) =>
+    variants.map((copy, v) => ({ sheet, i, copy, v })),
+  );
+  const papers = Array.from({ length: Math.ceil(slots.length / 2) }, (_, i) =>
+    slots.slice(i * 2, i * 2 + 2),
+  );
   return (
     <div className="print-overlay">
       <div className="print-toolbar">
@@ -139,7 +148,7 @@ function InvoicePages({
           <small>
             {overflow
               ? "Ada baris terlalu panjang. Ringkas deskripsi/serial sebelum mencetak."
-              : `A4 portrait · ${sheets.length * variants.length} halaman · Simpan PDF tersedia di dialog cetak sistem`}
+              : `Invoice ½ A4 landscape · ${papers.length} lembar A4 · 2 invoice per lembar`}
           </small>
         </div>
         <div className="actions">
@@ -185,262 +194,275 @@ function InvoicePages({
         </div>
       </div>
       <div className="print-pages">
-        {variants.flatMap((copy, v) =>
-          sheets.map((sheet, i) => (
-            <article
-              key={`${v}-${i}`}
-              ref={(el) => {
-                if (v === 0) refs.current[i] = el;
-              }}
-              className="invoice"
-              data-copy={copy ? "true" : "false"}
-            >
-              <header className="invoice-brand">
-                <div>
-                  {doc.logo ? (
-                    <img src={doc.logo} alt="Logo penerbit" />
-                  ) : (
-                    <strong>{doc.issuerName}</strong>
-                  )}
-                </div>
-                <div className="invoice-brand-space" />
-              </header>
-              <div className="invoice-title">
-                <h1>{copy ? "Copy Invoice" : "Invoice"}</h1>
-                <div className="invoice-partner-logo">
-                  {doc.partnerLogo && (
-                    <img src={doc.partnerLogo} alt="Logo mitra" />
-                  )}
-                </div>
-              </div>
-              <div className="invoice-meta">
-                <section>
-                  <p>
-                    <b>Date:</b>{" "}
-                    {new Date(`${doc.date}T12:00:00`).toLocaleDateString(
-                      "en-GB",
-                      { day: "numeric", month: "long", year: "numeric" },
-                    )}
-                  </p>
-                  <p>
-                    <b>Reff:</b> {doc.number}
-                  </p>
-                </section>
-                <section>
-                  <b>Issuer:</b>
-                  <strong>{doc.issuerName}</strong>
-                  <p>{doc.issuerAddress}</p>
-                  <p>
-                    {doc.issuerPhone &&
-                      `Telepon: ${doc.issuerPhone.replace(/^(?:T|Telp\.?|Telepon|Phone|Telephone)\s*:\s*/i, "")}`}
-                  </p>
-                </section>
-              </div>
-              <section className="invoice-account">
-                <b>For Account :</b>
-                <strong>{doc.partyName}</strong>
-                <p>Address: {doc.partyAddress || "—"}</p>
-                <p>Contact Person: {doc.partyPhone || "—"}</p>
-              </section>
-              {sheet.lines.length > 0 && (
-                <table className="invoice-table">
-                  <colgroup>
-                    {[5.1, 17.4, 30.3, 6, 18, 23.2].map((width, index) => (
-                      <col key={index} style={{ width: `${width}%` }} />
-                    ))}
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>No</th>
-                      <th>SN</th>
-                      <th>Description</th>
-                      <th>Qty</th>
-                      <th>Unit Price IDR</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sheet.lines.map((l) => (
-                      <tr key={l.id}>
-                        <td>
-                          {linesOf(db, doc.id).findIndex((x) => x.id === l.id) +
-                            1}
-                        </td>
-                        <td className="serial-cell">{serialText(l.serials)}</td>
-                        <td>
-                          {l.name}
-                          {lineDiscount(l) > 0 && (
-                            <small className="invoice-product-discount">
-                              Diskon{" "}
-                              {l.discountType === "percent"
-                                ? `${qty(l.discountValue ?? 0)}%`
-                                : `${money(l.discountValue ?? 0)}/unit`}{" "}
-                              (−{money(lineDiscount(l))})
-                            </small>
-                          )}
-                        </td>
-                        <td>{qty(l.qty)}</td>
-                        <td>
-                          <InvoiceMoney value={l.price} />
-                        </td>
-                        <td className="invoice-line-total">
-                          <InvoiceMoney value={lineNet(l)} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  {sheet.summary && (
-                    <tfoot>
-                      {doc.discount > 0 && (
-                        <tr>
-                          <td colSpan={5}>Discount</td>
-                          <td>
-                            <InvoiceMoney value={-doc.discount} />
-                          </td>
-                        </tr>
-                      )}
-                      {hasDeductions && (
-                        <tr>
-                          <td colSpan={5}>Total Invoice</td>
-                          <td>
-                            <InvoiceMoney value={doc.total} />
-                          </td>
-                        </tr>
-                      )}
-                      {downPayment > 0 && (
-                        <tr>
-                          <td colSpan={5}>Down Payment (DP)</td>
-                          <td>
-                            <InvoiceMoney value={-downPayment} />
-                          </td>
-                        </tr>
-                      )}
-                      {otherPayments > 0 && (
-                        <tr>
-                          <td colSpan={5}>Pembayaran lainnya</td>
-                          <td>
-                            <InvoiceMoney value={-otherPayments} />
-                          </td>
-                        </tr>
-                      )}
-                      {returns > 0 && (
-                        <tr>
-                          <td colSpan={5}>Retur</td>
-                          <td>
-                            <InvoiceMoney value={-returns} />
-                          </td>
-                        </tr>
-                      )}
-                      {remaining < 0 && (
-                        <tr>
-                          <td colSpan={5}>Saldo kredit</td>
-                          <td>
-                            <InvoiceMoney value={-remaining} />
-                          </td>
-                        </tr>
-                      )}
-                      <tr>
-                        <td colSpan={5}>
-                          <b>
-                            Grand Total
-                            {hasDeductions && " (Sisa pembayaran)"}
-                          </b>
-                        </td>
-                        <td>
-                          <b>
-                            <InvoiceMoney value={Math.max(0, remaining)} />
-                          </b>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              )}
-              {sheet.summary && (
-                <section className="invoice-terms">
-                  <b>Terms of Payment:</b> {doc.terms || "—"}
-                  <div className="invoice-payment-status">
-                    Status pembayaran:{" "}
-                    <b>{remaining > 0 ? "Belum lunas" : "Lunas"}</b>
-                    {remaining < 0 && " · Memiliki saldo kredit"}
-                  </div>
-                </section>
-              )}
-              {sheet.warranty && (
-                <section className="invoice-warranty">
-                  {sheet.warranty && (
-                    <b>
-                      WARRANTY TERMS & CONDITIONS
-                      {!sheet.lines.length ? " (lanjutan)" : ""}
-                    </b>
-                  )}
-                  <div className="warranty-text">
-                    {sheet.warranty.split("\n").map((line, index) => (
-                      <div
-                        key={index}
-                        className={
-                          /^Warranty is void if/i.test(line)
-                            ? "warranty-void"
-                            : undefined
-                        }
-                      >
-                        {/^(Warranty is void if|Shipping costs|Syarat|Catatan)/i.test(
-                          line,
-                        ) ? (
-                          <b>{line}</b>
-                        ) : (
-                          line || <br />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-              <div
-                className={`invoice-footer ${sheet.final ? "" : "continuation"}`}
+        {papers.map((paper, paperIndex) => (
+          <section className="invoice-paper" key={paperIndex}>
+            {paper.map(({ copy, v, sheet, i }) => (
+              <article
+                key={`${v}-${i}`}
+                ref={(el) => {
+                  if (v === 0) refs.current[i] = el;
+                }}
+                className="invoice"
+                data-copy={copy ? "true" : "false"}
               >
-                {sheet.final ? (
-                  <>
-                    <section className="invoice-bank">
-                      {[
-                        ["Beneficiary", doc.beneficiary],
-                        ["Bank Name", doc.bank],
-                        ["Branch", doc.bankBranch],
-                        ["Account Number", doc.account],
-                        ["Bank Code", doc.bankCode],
-                        ["Country", doc.country],
-                      ]
-                        .filter(([, v]) => v)
-                        .map(([k, val]) => (
-                          <p key={k}>
-                            {k}: <b>{val}</b>
-                          </p>
-                        ))}
-                    </section>
-                    <section className="invoice-signature">
-                      <p>Signature: {doc.signature || doc.issuerName}</p>
-                    </section>
-                  </>
-                ) : (
-                  <p className="continued">
-                    Dilanjutkan pada halaman berikutnya.
-                  </p>
+                <header className="invoice-brand">
+                  <div>
+                    {doc.logo ? (
+                      <img
+                        src={doc.logo}
+                        alt="Logo penerbit"
+                        onLoad={() => setLayoutVersion((n) => n + 1)}
+                      />
+                    ) : (
+                      <strong>{doc.issuerName}</strong>
+                    )}
+                  </div>
+                  <div className="invoice-brand-space" />
+                </header>
+                <div className="invoice-title">
+                  <h1>{copy ? "Copy Invoice" : "Invoice"}</h1>
+                  <div className="invoice-partner-logo">
+                    {doc.partnerLogo && (
+                      <img
+                        src={doc.partnerLogo}
+                        alt="Logo mitra"
+                        onLoad={() => setLayoutVersion((n) => n + 1)}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="invoice-meta">
+                  <section>
+                    <p>
+                      <b>Date:</b>{" "}
+                      {new Date(`${doc.date}T12:00:00`).toLocaleDateString(
+                        "en-GB",
+                        { day: "numeric", month: "long", year: "numeric" },
+                      )}
+                    </p>
+                    <p>
+                      <b>Reff:</b> {doc.number}
+                    </p>
+                  </section>
+                  <section>
+                    <b>Issuer:</b>
+                    <strong>{doc.issuerName}</strong>
+                    <p>{doc.issuerAddress}</p>
+                    <p>
+                      {doc.issuerPhone &&
+                        `Telepon: ${doc.issuerPhone.replace(/^(?:T|Telp\.?|Telepon|Phone|Telephone)\s*:\s*/i, "")}`}
+                    </p>
+                  </section>
+                </div>
+                <section className="invoice-account">
+                  <b>For Account :</b>
+                  <strong>{doc.partyName}</strong>
+                  <p>Address: {doc.partyAddress || "—"}</p>
+                  <p>Contact Person: {doc.partyPhone || "—"}</p>
+                </section>
+                {sheet.lines.length > 0 && (
+                  <table className="invoice-table">
+                    <colgroup>
+                      {[5.1, 17.4, 30.3, 6, 18, 23.2].map((width, index) => (
+                        <col key={index} style={{ width: `${width}%` }} />
+                      ))}
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>No</th>
+                        <th>SN</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Unit Price IDR</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sheet.lines.map((l) => (
+                        <tr key={l.id}>
+                          <td>
+                            {linesOf(db, doc.id).findIndex(
+                              (x) => x.id === l.id,
+                            ) + 1}
+                          </td>
+                          <td className="serial-cell">
+                            {serialText(l.serials)}
+                          </td>
+                          <td>
+                            {l.name}
+                            {lineDiscount(l) > 0 && (
+                              <small className="invoice-product-discount">
+                                Diskon{" "}
+                                {l.discountType === "percent"
+                                  ? `${qty(l.discountValue ?? 0)}%`
+                                  : `${money(l.discountValue ?? 0)}/unit`}{" "}
+                                (−{money(lineDiscount(l))})
+                              </small>
+                            )}
+                          </td>
+                          <td>{qty(l.qty)}</td>
+                          <td>
+                            <InvoiceMoney value={l.price} />
+                          </td>
+                          <td className="invoice-line-total">
+                            <InvoiceMoney value={lineNet(l)} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {sheet.summary && (
+                      <tfoot>
+                        {doc.discount > 0 && (
+                          <tr>
+                            <td colSpan={5}>Discount</td>
+                            <td>
+                              <InvoiceMoney value={-doc.discount} />
+                            </td>
+                          </tr>
+                        )}
+                        {hasDeductions && (
+                          <tr>
+                            <td colSpan={5}>Total Invoice</td>
+                            <td>
+                              <InvoiceMoney value={doc.total} />
+                            </td>
+                          </tr>
+                        )}
+                        {downPayment > 0 && (
+                          <tr>
+                            <td colSpan={5}>Down Payment (DP)</td>
+                            <td>
+                              <InvoiceMoney value={-downPayment} />
+                            </td>
+                          </tr>
+                        )}
+                        {otherPayments > 0 && (
+                          <tr>
+                            <td colSpan={5}>Pembayaran lainnya</td>
+                            <td>
+                              <InvoiceMoney value={-otherPayments} />
+                            </td>
+                          </tr>
+                        )}
+                        {returns > 0 && (
+                          <tr>
+                            <td colSpan={5}>Retur</td>
+                            <td>
+                              <InvoiceMoney value={-returns} />
+                            </td>
+                          </tr>
+                        )}
+                        {remaining < 0 && (
+                          <tr>
+                            <td colSpan={5}>Saldo kredit</td>
+                            <td>
+                              <InvoiceMoney value={-remaining} />
+                            </td>
+                          </tr>
+                        )}
+                        <tr>
+                          <td colSpan={5}>
+                            <b>
+                              Grand Total
+                              {hasDeductions && " (Sisa pembayaran)"}
+                            </b>
+                          </td>
+                          <td>
+                            <b>
+                              <InvoiceMoney value={Math.max(0, remaining)} />
+                            </b>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
                 )}
-                {copy && (
-                  <div className="copy-stamp" aria-label="COPY">
-                    COPY
+                {sheet.summary && (
+                  <section className="invoice-terms">
+                    <b>Terms of Payment:</b> {doc.terms || "—"}
+                    <div className="invoice-payment-status">
+                      Status pembayaran:{" "}
+                      <b>{remaining > 0 ? "Belum lunas" : "Lunas"}</b>
+                      {remaining < 0 && " · Memiliki saldo kredit"}
+                    </div>
+                  </section>
+                )}
+                {sheet.warranty && (
+                  <section className="invoice-warranty">
+                    {sheet.warranty && (
+                      <b>
+                        WARRANTY TERMS & CONDITIONS
+                        {!sheet.lines.length ? " (lanjutan)" : ""}
+                      </b>
+                    )}
+                    <div className="warranty-text">
+                      {sheet.warranty.split("\n").map((line, index) => (
+                        <div
+                          key={index}
+                          className={
+                            /^Warranty is void if/i.test(line)
+                              ? "warranty-void"
+                              : undefined
+                          }
+                        >
+                          {/^(Warranty is void if|Shipping costs|Syarat|Catatan)/i.test(
+                            line,
+                          ) ? (
+                            <b>{line}</b>
+                          ) : (
+                            line || <br />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                <div
+                  className={`invoice-footer ${sheet.final ? "" : "continuation"}`}
+                >
+                  {sheet.final ? (
+                    <>
+                      <section className="invoice-bank">
+                        {[
+                          ["Beneficiary", doc.beneficiary],
+                          ["Bank Name", doc.bank],
+                          ["Branch", doc.bankBranch],
+                          ["Account Number", doc.account],
+                          ["Bank Code", doc.bankCode],
+                          ["Country", doc.country],
+                        ]
+                          .filter(([, v]) => v)
+                          .map(([k, val]) => (
+                            <p key={k}>
+                              {k}: <b>{val}</b>
+                            </p>
+                          ))}
+                      </section>
+                      <section className="invoice-signature">
+                        <p>Signature: {doc.signature || doc.issuerName}</p>
+                      </section>
+                    </>
+                  ) : (
+                    <p className="continued">
+                      Dilanjutkan pada halaman berikutnya.
+                    </p>
+                  )}
+                  {copy && (
+                    <div className="copy-stamp" aria-label="COPY">
+                      COPY
+                    </div>
+                  )}
+                </div>
+                {sheets.length > 1 && (
+                  <div className="invoice-footnote">
+                    {doc.number}
+                    {copy ? " • COPY" : ""} · Halaman {i + 1} / {sheets.length}
                   </div>
                 )}
-              </div>
-              {sheets.length > 1 && (
-                <div className="invoice-footnote">
-                  {doc.number}
-                  {copy ? " • COPY" : ""} · Halaman {i + 1} / {sheets.length}
-                </div>
-              )}
-            </article>
-          )),
-        )}
+              </article>
+            ))}
+          </section>
+        ))}
       </div>
     </div>
   );

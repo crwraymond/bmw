@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { ConnectionSetup } from "./StoreConnection";
 import { cloudConfigured } from "./cloud";
 import { refreshInvoiceProfile } from "./domain";
@@ -338,7 +339,7 @@ function App() {
       setDetail(null);
     }
   };
-  const toast = notice && (
+  const notification = notice && (
     <div
       className={`toast ${notice.error ? "error" : ""}`}
       role={notice.error ? "alert" : "status"}
@@ -350,6 +351,12 @@ function App() {
       </button>
     </div>
   );
+  const activeDialog = notice?.error
+    ? document.querySelector<HTMLDialogElement>("dialog[open]:last-of-type")
+    : null;
+  const toast = activeDialog
+    ? createPortal(notification, activeDialog)
+    : notification;
   if (locked)
     return (
       <div className="access-page">
