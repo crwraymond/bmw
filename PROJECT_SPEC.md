@@ -341,7 +341,7 @@ Usulan tambahan: **Simpan PDF** untuk arsip atau pengiriman manual. Mekanisme ce
 
 #### Persyaratan tata letak
 
-- Keputusan pengguna 16 November 2026: setiap invoice memakai setengah A4 landscape. Dua salinan (invoice normal/lunas dan COPY) disusun atas–bawah pada satu lembar A4 portrait. Invoice panjang dilanjutkan ke bagian/lembar berikutnya tanpa memotong data, dengan penanda COPY pada setiap bagian COPY.
+- Keputusan pengguna 16 November 2026: invoice normal/lunas di kiri dan COPY di kanan pada satu lembar A4 landscape. Invoice panjang dilanjutkan ke bagian/lembar berikutnya tanpa memotong data, dengan penanda COPY pada setiap bagian COPY.
 - Hasil cetak hanya berisi invoice, tanpa sidebar, tombol, menu aplikasi, atau status penyimpanan.
 - Gunakan latar putih, teks hitam, garis tabel tipis, dan warna pada logo/cap sesuai kebutuhan.
 - Jumlah, harga satuan, subtotal, dan grand total tertata serta terbaca; format contoh memakai Rupiah dengan titik pemisah ribuan.

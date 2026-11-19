@@ -15,7 +15,7 @@ function InvoiceMoney({ value }: { value: number }) {
     </div>
   );
 }
-const halfPageHeight = (135 * 96) / 25.4 + 0.25;
+const halfPageHeight = (188 * 96) / 25.4 + 0.25;
 type Sheet = {
   lines: Line[];
   warranty: string;
@@ -148,7 +148,7 @@ function InvoicePages({
           <small>
             {overflow
               ? "Ada baris terlalu panjang. Ringkas deskripsi/serial sebelum mencetak."
-              : `Invoice ½ A4 landscape · ${papers.length} lembar A4 · 2 invoice per lembar`}
+              : `A4 landscape · ${papers.length} lembar · Dua kolom`}
           </small>
         </div>
         <div className="actions">
@@ -182,7 +182,7 @@ function InvoicePages({
             disabled={overflow || busy}
             onClick={async () => {
               try {
-                await printDocument();
+                await printDocument(true);
               } catch (e) {
                 onError(String(e));
               }
@@ -217,7 +217,13 @@ function InvoicePages({
                       <strong>{doc.issuerName}</strong>
                     )}
                   </div>
-                  <div className="invoice-brand-space" />
+                  <div className="invoice-brand-space">
+                    {copy && (
+                      <span className="copy-stamp" aria-label="COPY">
+                        COPY
+                      </span>
+                    )}
+                  </div>
                 </header>
                 <div className="invoice-title">
                   <h1>{copy ? "Copy Invoice" : "Invoice"}</h1>
@@ -446,11 +452,6 @@ function InvoicePages({
                     <p className="continued">
                       Dilanjutkan pada halaman berikutnya.
                     </p>
-                  )}
-                  {copy && (
-                    <div className="copy-stamp" aria-label="COPY">
-                      COPY
-                    </div>
                   )}
                 </div>
                 {sheets.length > 1 && (

@@ -170,8 +170,8 @@ export function exportCSV(
 ) {
   download(name, csvText(headers, rows));
 }
-export async function printDocument() {
-  if (native) await invoke("print_document");
+export async function printDocument(landscape = false) {
+  if (native) await invoke("print_document", { landscape });
   else window.print();
 }
 

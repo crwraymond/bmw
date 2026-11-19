@@ -61,7 +61,7 @@ export function DocumentList({
   busy: boolean;
   onView: (d: Doc) => void;
   onDelete: (d: Doc) => void;
-  onPrint: (d: Doc, mode: "normal" | "copy") => void;
+  onPrint: (d: Doc, mode: "normal" | "copy" | "both") => void;
   openNew?: boolean;
   onOpened: () => void;
 }) {
@@ -166,6 +166,16 @@ export function DocumentList({
                         >
                           <Copy size={16} />
                           Cetak COPY
+                        </button>
+                        <button
+                          type="button"
+                          title="Cetak keduanya"
+                          aria-label={`Cetak keduanya ${d.number}`}
+                          disabled={busy}
+                          onClick={() => onPrint(d, "both")}
+                        >
+                          <Printer size={16} />
+                          Cetak keduanya
                         </button>
                       </>
                     )}

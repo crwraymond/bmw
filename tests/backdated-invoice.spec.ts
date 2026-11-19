@@ -129,9 +129,10 @@ for (const mobile of [false, true]) {
         localStorage.getItem("toko-offline-preview-v1"),
       );
       await nav(page, "Penjualan");
-      await page.getByTitle("Lihat detail").click();
       await page
-        .getByRole("button", { name: "Cetak keduanya", exact: true })
+        .getByRole("row")
+        .filter({ hasText: "INV/" })
+        .getByRole("button", { name: /^Cetak keduanya INV\// })
         .click();
       await expect(page.locator(".invoice-paper")).toHaveCount(1);
       await expect(page.locator(".invoice")).toHaveCount(2);
@@ -143,14 +144,14 @@ for (const mobile of [false, true]) {
         .evaluateAll(async (els) =>
           Promise.all(els.map((el) => (el as HTMLImageElement).decode())),
         );
-      for (const sheet of await page.locator(".invoice").all()) {
+      const [original, copy] = await page.locator(".invoice").all();
+      for (const sheet of [original, copy]) {
         await expect(sheet.locator("tbody tr")).toHaveCount(5);
         await expect(sheet.locator(".invoice-payment-status")).toContainText(
           "Lunas",
         );
         const rect = await sheet.boundingBox();
-        expect(rect!.width).toBeGreaterThan(rect!.height);
-        expect(rect!.height).toBeLessThanOrEqual(510.5);
+        expect(rect!.height).toBeLessThanOrEqual(711);
       }
       await expect(
         page.locator('.invoice[data-copy="false"] .copy-stamp'),
@@ -159,6 +160,10 @@ for (const mobile of [false, true]) {
         page.locator('.invoice[data-copy="true"] .copy-stamp'),
       ).toHaveCount(1);
       await page.emulateMedia({ media: "print" });
+      const left = (await original.boundingBox())!;
+      const right = (await copy.boundingBox())!;
+      expect(right.x).toBeGreaterThan(left.x + left.width);
+      expect(right.y).toBeCloseTo(left.y, 0);
       await page.pdf({
         path: info.outputPath("invoice-setengah-a4.pdf"),
         preferCSSPageSize: true,

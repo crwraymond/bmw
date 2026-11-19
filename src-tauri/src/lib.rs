@@ -184,10 +184,13 @@ fn print_document(window: tauri::WebviewWindow) -> Result<(), String> {
 struct AndroidPrint(tauri::plugin::PluginHandle<tauri::Wry>);
 #[cfg(target_os = "android")]
 #[tauri::command]
-async fn print_document(app: tauri::AppHandle) -> Result<(), String> {
+async fn print_document(app: tauri::AppHandle, landscape: bool) -> Result<(), String> {
     app.state::<AndroidPrint>()
         .0
-        .run_mobile_plugin_async::<()>("print", ())
+        .run_mobile_plugin_async::<()>(
+            "print",
+            serde_json::json!({ "landscape": landscape }),
+        )
         .await
         .map_err(|e| e.to_string())
 }
