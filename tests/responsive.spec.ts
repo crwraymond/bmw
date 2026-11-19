@@ -73,6 +73,15 @@ for (const viewport of [
     ]) {
       await nav(page, name);
       await fits(page);
+      if (name === "Laporan") {
+        const contact = page.getByRole("combobox", {
+          name: "Kontak",
+          exact: true,
+        });
+        await contact.fill("C001");
+        await page.getByRole("option", { name: /^C001/ }).click();
+        await expect(contact).toHaveValue(/^C001/);
+      }
     }
     if (viewport.width === 360)
       await page.screenshot({
@@ -103,9 +112,39 @@ for (const viewport of [
           expect(b.x + b.width).toBeLessThanOrEqual(viewport.width + 1);
         }
       }
+      if (section === "Penjualan") {
+        const customer = dialog.getByRole("combobox", {
+          name: "Customer",
+          exact: true,
+        });
+        await customer.fill("C001");
+        const customerOption = dialog.getByRole("option", { name: /^C001/ });
+        await expect(customerOption).toBeVisible();
+        await customerOption.click();
+        await expect(customer).toHaveValue(/^C001/);
+        const item = dialog.getByPlaceholder("Cari atau pilih barang…", {
+          exact: true,
+        });
+        await item.fill("001");
+        const itemOption = dialog.getByRole("option", { name: /^001/ });
+        await expect(itemOption).toBeVisible();
+        const option = (await itemOption.boundingBox())!;
+        expect(option.x).toBeGreaterThanOrEqual(0);
+        expect(option.x + option.width).toBeLessThanOrEqual(viewport.width + 1);
+        expect(option.y).toBeGreaterThanOrEqual(0);
+        expect(option.y + option.height).toBeLessThanOrEqual(
+          viewport.height + 1,
+        );
+        await itemOption.click();
+        await expect(
+          dialog.getByRole("button", { name: "Tambah baris", exact: true }),
+        ).toBeEnabled();
+      }
       if (viewport.width === 360 && section === "Penjualan")
         await page.screenshot({ path: info.outputPath("sale-phone.png") });
-      await dialog.getByRole("button", { name: "Tutup dialog", exact: true }).click();
+      await dialog
+        .getByRole("button", { name: "Tutup dialog", exact: true })
+        .click();
     }
   });
 }

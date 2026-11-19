@@ -4,8 +4,10 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type InputHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Check, Search } from "lucide-react";
 import { displayNumber, editingNumber, numberValue } from "./numberFormat";
 type NumberProps = Omit<
@@ -147,6 +149,10 @@ export function SearchSelect({
   );
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [floating, setFloating] = useState<{
+    host: HTMLElement;
+    style: CSSProperties;
+  } | null>(null);
   const editing = useRef(false);
   const previous = useRef(value);
   const selected = options.find((o) => o.value === value);
@@ -173,6 +179,78 @@ export function SearchSelect({
         .getElementById(`${id}-${active}`)
         ?.scrollIntoView({ block: "nearest" });
   }, [active, id]);
+  useLayoutEffect(() => {
+    const anchor = input.current;
+    const table = anchor?.closest(".table-scroll");
+    if (!open || disabled || !anchor) {
+      setFloating(null);
+      return;
+    }
+    const dialog = anchor.closest<HTMLDialogElement>("dialog[open]");
+    const host = dialog ?? document.body;
+    const viewport = window.visualViewport;
+    const position = () => {
+      const rect = anchor.getBoundingClientRect();
+      const bounds = table?.getBoundingClientRect();
+      const dialogBounds = dialog?.getBoundingClientRect();
+      const top = viewport?.offsetTop ?? 0;
+      const bottom = top + (viewport?.height ?? window.innerHeight);
+      const left = viewport?.offsetLeft ?? 0;
+      const right =
+        left + (viewport?.width ?? document.documentElement.clientWidth);
+      if (
+        rect.right <= Math.max(left, bounds?.left ?? left) ||
+        rect.left >= Math.min(right, bounds?.right ?? right) ||
+        rect.bottom <=
+          Math.max(top, bounds?.top ?? top, dialogBounds?.top ?? top) ||
+        rect.top >=
+          Math.min(
+            bottom,
+            bounds?.bottom ?? bottom,
+            dialogBounds?.bottom ?? bottom,
+          )
+      ) {
+        setOpen(false);
+        return;
+      }
+      const gap = 5;
+      const below = bottom - rect.bottom - gap;
+      const above = rect.top - top - gap;
+      const flip = below < 140 && above > below;
+      const width = Math.min(Math.max(rect.width, 160), right - left - gap * 2);
+      setFloating({
+        host,
+        style: {
+          position: "fixed",
+          left: Math.max(left + gap, Math.min(rect.left, right - width - gap)),
+          right: "auto",
+          width,
+          top: flip ? "auto" : rect.bottom + gap,
+          bottom: flip ? window.innerHeight - rect.top + gap : "auto",
+          maxHeight: Math.min(210, flip ? above : below),
+          zIndex: 20,
+        },
+      });
+    };
+    position();
+    const repositionAfterScroll = (event: Event) => {
+      if (!(
+        event.target instanceof Element &&
+        event.target.closest(".select-options")
+      ))
+        position();
+    };
+    window.addEventListener("scroll", repositionAfterScroll, true);
+    window.addEventListener("resize", position);
+    viewport?.addEventListener("resize", position);
+    viewport?.addEventListener("scroll", position);
+    return () => {
+      window.removeEventListener("scroll", repositionAfterScroll, true);
+      window.removeEventListener("resize", position);
+      viewport?.removeEventListener("resize", position);
+      viewport?.removeEventListener("scroll", position);
+    };
+  }, [open, disabled]);
   const choose = (option: Choice) => {
     editing.current = false;
     setQuery(option.label);
@@ -180,6 +258,41 @@ export function SearchSelect({
     setActive(-1);
     onChange(option.value);
   };
+  const list = open && !disabled && (
+    <div
+      role="listbox"
+      id={`${id}-list`}
+      className="select-options"
+      style={floating?.style}
+    >
+      {matches.length ? (
+        matches.map((o, i) => (
+          <button
+            type="button"
+            role="option"
+            id={`${id}-${i}`}
+            aria-selected={o.value === value}
+            key={o.value}
+            className={i === active ? "highlighted" : ""}
+            onMouseDown={(e) => e.preventDefault()}
+            onMouseEnter={() => setActive(i)}
+            onClick={() => choose(o)}
+          >
+            <span>
+              {o.label}
+              {o.detail && <small>{o.detail}</small>}
+            </span>
+            {o.value === value && <Check size={15} />}
+          </button>
+        ))
+      ) : (
+        <div className="select-no-results">
+          <Search size={16} />
+          {emptyLabel}
+        </div>
+      )}
+    </div>
+  );
   return (
     <div className={`search-select ${disabled ? "is-disabled" : ""}`}>
       <input
@@ -202,6 +315,7 @@ export function SearchSelect({
           setOpen(true);
           e.currentTarget.select();
         }}
+        onClick={() => setOpen(true)}
         onChange={(e) => {
           editing.current = true;
           setQuery(e.target.value);
@@ -251,36 +365,7 @@ export function SearchSelect({
       >
         <ChevronDown size={17} />
       </button>
-      {open && !disabled && (
-        <div role="listbox" id={`${id}-list`} className="select-options">
-          {matches.length ? (
-            matches.map((o, i) => (
-              <button
-                type="button"
-                role="option"
-                id={`${id}-${i}`}
-                aria-selected={o.value === value}
-                key={o.value}
-                className={i === active ? "highlighted" : ""}
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => choose(o)}
-              >
-                <span>
-                  {o.label}
-                  {o.detail && <small>{o.detail}</small>}
-                </span>
-                {o.value === value && <Check size={15} />}
-              </button>
-            ))
-          ) : (
-            <div className="select-no-results">
-              <Search size={16} />
-              {emptyLabel}
-            </div>
-          )}
-        </div>
-      )}
+      {list && (floating ? createPortal(list, floating.host) : list)}
     </div>
   );
 }
